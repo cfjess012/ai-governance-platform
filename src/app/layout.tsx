@@ -47,7 +47,7 @@ export default function RootLayout({
                 </svg>
               </div>
               <span className="text-sm font-semibold tracking-tight text-slate-900">
-                AI Governance
+                AI Governance Use Case Process
               </span>
             </Link>
             <div className="flex items-center gap-1">
