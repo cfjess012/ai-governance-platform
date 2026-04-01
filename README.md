@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Governance Platform
 
-## Getting Started
+Adaptive wizard for AI use case intake and pre-production risk assessment. Auto-classifies against EU AI Act risk tiers and an internal Agent Tier framework. Generates transparent risk scores with explanations.
 
-First, run the development server:
+## Quick Start
 
 ```bash
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Architecture
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full architecture documentation.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Available Commands
 
-## Learn More
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start dev server (Turbopack) |
+| `npm run check` | Lint + type-check + test |
+| `npm test` | Run tests |
+| `npm run lint` | Run Biome linter |
+| `npm run format` | Format with Biome |
 
-To learn more about Next.js, take a look at the following resources:
+## Adding a New Question
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Use the Claude Code command: `/add-question [intake|preprod] [description]`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+This walks through all required changes: question definition, Zod schema, branching rules, ServiceNow mapping, docs, and tests.
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/config/questions.ts` — Question registry (single source of truth)
+- `src/lib/classification/` — EU AI Act and Agent Tier classifiers
+- `src/lib/questions/` — Zod schemas and branching rules
+- `src/lib/servicenow/` — ServiceNow client and field mapping
+- `src/components/wizard/` — Wizard UI components
+- `.claude/skills/ai-governance-domain/references/` — Domain reference docs

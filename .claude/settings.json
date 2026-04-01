@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "file=$(echo \"$TOOL_INPUT\" | grep -o '\"file_path\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); if [ -n \"$file\" ] && echo \"$file\" | grep -q 'src/'; then npx biome check --write \"$file\" 2>/dev/null; fi",
+        "description": "Auto-format src/ files with Biome after edit"
+      }
+    ]
+  }
+}
