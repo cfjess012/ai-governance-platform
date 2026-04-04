@@ -9,8 +9,8 @@ interface UseCaseRecord {
   id: string;
   formData: {
     useCaseName?: string;
-    businessPurpose?: string;
-    solutionType?: string;
+    businessProblem?: string;
+    aiType?: string;
   };
   status: string;
   riskScore: number | null;
@@ -24,9 +24,9 @@ const sampleRecords: UseCaseRecord[] = [
     id: 'sample-1',
     formData: {
       useCaseName: 'Customer Service Chatbot',
-      businessPurpose:
+      businessProblem:
         'AI-powered chatbot for handling customer inquiries about insurance policies',
-      solutionType: 'existing_tool',
+      aiType: 'generative_ai',
     },
     status: 'in_review',
     riskScore: null,
@@ -38,8 +38,8 @@ const sampleRecords: UseCaseRecord[] = [
     id: 'sample-2',
     formData: {
       useCaseName: 'Claims Fraud Detection',
-      businessPurpose: 'ML model to flag potentially fraudulent insurance claims for manual review',
-      solutionType: 'custom',
+      businessProblem: 'ML model to flag potentially fraudulent insurance claims for manual review',
+      aiType: 'predictive_classification',
     },
     status: 'submitted',
     riskScore: null,
@@ -51,8 +51,8 @@ const sampleRecords: UseCaseRecord[] = [
     id: 'sample-3',
     formData: {
       useCaseName: 'Document Summarization Tool',
-      businessPurpose: 'Internal tool using LLM to summarize long policy documents for analysts',
-      solutionType: 'new_tool',
+      businessProblem: 'Internal tool using LLM to summarize long policy documents for analysts',
+      aiType: 'rag',
     },
     status: 'approved',
     riskScore: null,
@@ -109,12 +109,12 @@ export default function DashboardPage() {
             key={record.id}
             id={record.id}
             name={record.formData.useCaseName ?? 'Untitled'}
-            description={record.formData.businessPurpose ?? ''}
+            description={record.formData.businessProblem ?? ''}
             status={record.status}
             riskScore={record.riskScore}
             euAiActTier={record.euAiActTier}
             agentTier={record.agentTier}
-            solutionType={record.formData.solutionType ?? 'unknown'}
+            solutionType={record.formData.aiType ?? 'unknown'}
             updatedAt={record.updatedAt}
           />
         ))}

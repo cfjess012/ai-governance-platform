@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateProgress,
+  getInlineBanners,
   getVisibleIntakeQuestions,
   getVisibleIntakeStages,
   getVisibleQuestions,
@@ -9,184 +10,139 @@ import {
 
 describe('Intake Branching Rules', () => {
   describe('getVisibleIntakeQuestions', () => {
-    it('shows 14 always-visible questions with no state', () => {
+    it('shows 29 always-visible questions with no state', () => {
       const visible = getVisibleIntakeQuestions({});
-      expect(visible.size).toBe(14);
+      // 29 always-visible (all except q9a, q9b, q10a, q11a)
+      expect(visible.size).toBe(29);
     });
 
-    it('includes all Stage 1 (Quick Intake) questions', () => {
+    it('includes all Section A core questions', () => {
       const visible = getVisibleIntakeQuestions({});
-      expect(visible.has('intake-q1')).toBe(true); // useCaseName
-      expect(visible.has('intake-q2')).toBe(true); // solutionType
-      expect(visible.has('intake-q3')).toBe(true); // businessPurpose
-      expect(visible.has('intake-q4')).toBe(true); // businessArea
-      expect(visible.has('intake-q5')).toBe(true); // useCaseOwner
-      expect(visible.has('intake-q6')).toBe(true); // ethicalAiAligned
-      expect(visible.has('intake-q7')).toBe(true); // prohibitedPractices
+      expect(visible.has('intake-q1')).toBe(true);  // useCaseName
+      expect(visible.has('intake-q2')).toBe(true);  // useCaseOwner
+      expect(visible.has('intake-q3')).toBe(true);  // executiveSponsor
+      expect(visible.has('intake-q4')).toBe(true);  // businessArea
+      expect(visible.has('intake-q5')).toBe(true);  // businessProblem
+      expect(visible.has('intake-q6')).toBe(true);  // howAiHelps
+      expect(visible.has('intake-q7')).toBe(true);  // aiType
+      expect(visible.has('intake-q8')).toBe(true);  // buildOrAcquire
+      expect(visible.has('intake-q9')).toBe(true);  // thirdPartyInvolved
+      expect(visible.has('intake-q10')).toBe(true);  // usesFoundationModel
+      expect(visible.has('intake-q11')).toBe(true);  // deploymentRegions
+      expect(visible.has('intake-q12')).toBe(true);  // lifecycleStage
+      expect(visible.has('intake-q13')).toBe(true);  // previouslyReviewed
+      expect(visible.has('intake-q14')).toBe(true);  // highRiskTriggers
+      expect(visible.has('intake-q15a')).toBe(true); // whoUsesSystem
+      expect(visible.has('intake-q15b')).toBe(true); // whoAffected
+      expect(visible.has('intake-q16')).toBe(true);  // worstOutcome
     });
 
-    it('includes Stage 2 core questions (not target dates)', () => {
+    it('includes all Section B questions', () => {
       const visible = getVisibleIntakeQuestions({});
-      expect(visible.has('intake-q8')).toBe(true); // lifecycleStage
-      expect(visible.has('intake-q9')).toBe(true); // useStatus
-      expect(visible.has('intake-q10')).toBe(true); // executiveSponsor
-      expect(visible.has('intake-q11')).toBe(true); // strategicPriority
+      expect(visible.has('intake-q17')).toBe(true); // dataSensitivity
+      expect(visible.has('intake-q18')).toBe(true); // humanOversight
+      expect(visible.has('intake-q19')).toBe(true); // differentialTreatment
+      expect(visible.has('intake-q20')).toBe(true); // peopleAffectedCount
+      expect(visible.has('intake-q21')).toBe(true); // additionalNotes
     });
 
-    it('includes Stage 3 core questions (not value estimate)', () => {
+    it('includes all Section C questions', () => {
       const visible = getVisibleIntakeQuestions({});
-      expect(visible.has('intake-q14')).toBe(true); // valueDescription
-      expect(visible.has('intake-q15')).toBe(true); // valueCreationLevers
-      expect(visible.has('intake-q16')).toBe(true); // reflectedInBudget
+      expect(visible.has('intake-q22')).toBe(true); // strategicPriority
+      expect(visible.has('intake-q23')).toBe(true); // targetPocQuarter
+      expect(visible.has('intake-q24')).toBe(true); // targetProductionQuarter
+      expect(visible.has('intake-q25')).toBe(true); // valueDescription
+      expect(visible.has('intake-q26')).toBe(true); // valueCreationLevers
+      expect(visible.has('intake-q27')).toBe(true); // reflectedInBudget
+      expect(visible.has('intake-q28')).toBe(true); // valueEstimate
     });
 
-    // ── Target date visibility (Q12, Q13) ──
+    // ── Third-party vendor sub-fields (Q9a, Q9b) ──
 
-    it('hides target dates by default (no lifecycle stage set)', () => {
+    it('hides vendor sub-fields by default', () => {
       const visible = getVisibleIntakeQuestions({});
-      expect(visible.has('intake-q12')).toBe(false);
-      expect(visible.has('intake-q13')).toBe(false);
+      expect(visible.has('intake-q9a')).toBe(false);
+      expect(visible.has('intake-q9b')).toBe(false);
     });
 
-    it('shows target dates when lifecycle = ideation', () => {
-      const visible = getVisibleIntakeQuestions({ lifecycleStage: 'ideation' });
-      expect(visible.has('intake-q12')).toBe(true);
-      expect(visible.has('intake-q13')).toBe(true);
+    it('shows vendor sub-fields when thirdPartyInvolved = yes', () => {
+      const visible = getVisibleIntakeQuestions({ thirdPartyInvolved: 'yes' });
+      expect(visible.has('intake-q9a')).toBe(true);  // vendorName
+      expect(visible.has('intake-q9b')).toBe(true);  // auditability
     });
 
-    it('shows target dates when lifecycle = in_development', () => {
-      const visible = getVisibleIntakeQuestions({ lifecycleStage: 'in_development' });
-      expect(visible.has('intake-q12')).toBe(true);
-      expect(visible.has('intake-q13')).toBe(true);
+    it('hides vendor sub-fields when thirdPartyInvolved = no', () => {
+      const visible = getVisibleIntakeQuestions({ thirdPartyInvolved: 'no' });
+      expect(visible.has('intake-q9a')).toBe(false);
+      expect(visible.has('intake-q9b')).toBe(false);
     });
 
-    it('shows target dates when lifecycle = poc', () => {
-      const visible = getVisibleIntakeQuestions({ lifecycleStage: 'poc' });
-      expect(visible.has('intake-q12')).toBe(true);
-      expect(visible.has('intake-q13')).toBe(true);
-    });
+    // ── Foundation model sub-field (Q10a) ──
 
-    it('hides target dates when lifecycle = in_production', () => {
-      const visible = getVisibleIntakeQuestions({ lifecycleStage: 'in_production' });
-      expect(visible.has('intake-q12')).toBe(false);
-      expect(visible.has('intake-q13')).toBe(false);
-    });
-
-    it('hides target dates when lifecycle = backlog', () => {
-      const visible = getVisibleIntakeQuestions({ lifecycleStage: 'backlog' });
-      expect(visible.has('intake-q12')).toBe(false);
-      expect(visible.has('intake-q13')).toBe(false);
-    });
-
-    it('hides target dates when lifecycle = cancelled', () => {
-      const visible = getVisibleIntakeQuestions({ lifecycleStage: 'cancelled' });
-      expect(visible.has('intake-q12')).toBe(false);
-      expect(visible.has('intake-q13')).toBe(false);
-    });
-
-    it('hides target dates when lifecycle = decommissioned', () => {
-      const visible = getVisibleIntakeQuestions({ lifecycleStage: 'decommissioned' });
-      expect(visible.has('intake-q12')).toBe(false);
-      expect(visible.has('intake-q13')).toBe(false);
-    });
-
-    // ── Value estimate visibility (Q17) ──
-
-    it('hides value estimate by default (no budget answer)', () => {
+    it('hides which models by default', () => {
       const visible = getVisibleIntakeQuestions({});
-      expect(visible.has('intake-q17')).toBe(false);
+      expect(visible.has('intake-q10a')).toBe(false);
     });
 
-    it('shows value estimate when budget = yes', () => {
-      const visible = getVisibleIntakeQuestions({ reflectedInBudget: 'yes' });
-      expect(visible.has('intake-q17')).toBe(true);
+    it('shows which models when usesFoundationModel = yes', () => {
+      const visible = getVisibleIntakeQuestions({ usesFoundationModel: 'yes' });
+      expect(visible.has('intake-q10a')).toBe(true);
     });
 
-    it('shows value estimate when budget = no', () => {
-      const visible = getVisibleIntakeQuestions({ reflectedInBudget: 'no' });
-      expect(visible.has('intake-q17')).toBe(true);
+    it('hides which models when usesFoundationModel = no', () => {
+      const visible = getVisibleIntakeQuestions({ usesFoundationModel: 'no' });
+      expect(visible.has('intake-q10a')).toBe(false);
     });
 
-    it('hides value estimate when budget = none', () => {
-      const visible = getVisibleIntakeQuestions({ reflectedInBudget: 'none' });
-      expect(visible.has('intake-q17')).toBe(false);
+    it('hides which models when usesFoundationModel = dont_know', () => {
+      const visible = getVisibleIntakeQuestions({ usesFoundationModel: 'dont_know' });
+      expect(visible.has('intake-q10a')).toBe(false);
+    });
+
+    // ── Other region sub-field (Q11a) ──
+
+    it('hides other region by default', () => {
+      const visible = getVisibleIntakeQuestions({});
+      expect(visible.has('intake-q11a')).toBe(false);
+    });
+
+    it('shows other region when deploymentRegions includes other', () => {
+      const visible = getVisibleIntakeQuestions({ deploymentRegions: ['us_only', 'other'] });
+      expect(visible.has('intake-q11a')).toBe(true);
+    });
+
+    it('hides other region when only US selected', () => {
+      const visible = getVisibleIntakeQuestions({ deploymentRegions: ['us_only'] });
+      expect(visible.has('intake-q11a')).toBe(false);
     });
 
     // ── Combination tests ──
 
-    it('shows maximum questions (17) with early lifecycle + budget yes', () => {
+    it('shows max questions (33) with all conditionals active', () => {
       const visible = getVisibleIntakeQuestions({
-        lifecycleStage: 'ideation',
-        reflectedInBudget: 'yes',
+        thirdPartyInvolved: 'yes',
+        usesFoundationModel: 'yes',
+        deploymentRegions: ['us_only', 'other'],
       });
-      expect(visible.size).toBe(17);
+      // 29 always + 2 vendor + 1 model + 1 region = 33
+      expect(visible.size).toBe(33);
     });
 
-    it('shows minimum questions (14) with late lifecycle + budget none', () => {
+    it('shows minimum questions (29) with no conditionals triggered', () => {
       const visible = getVisibleIntakeQuestions({
-        lifecycleStage: 'in_production',
-        reflectedInBudget: 'none',
+        thirdPartyInvolved: 'no',
+        usesFoundationModel: 'no',
+        deploymentRegions: ['us_only'],
       });
-      expect(visible.size).toBe(14);
-    });
-
-    it('shows 16 questions with early lifecycle + no budget detail', () => {
-      const visible = getVisibleIntakeQuestions({
-        lifecycleStage: 'poc',
-        reflectedInBudget: 'none',
-      });
-      // 14 always + 2 dates = 16
-      expect(visible.size).toBe(16);
-    });
-
-    it('shows 15 questions with late lifecycle + budget yes', () => {
-      const visible = getVisibleIntakeQuestions({
-        lifecycleStage: 'in_production',
-        reflectedInBudget: 'yes',
-      });
-      // 14 always + Q17 = 15
-      expect(visible.size).toBe(15);
-    });
-
-    // ── Solution type does NOT hide questions (handled in sidebar) ──
-
-    it('existing_tool does not reduce question count', () => {
-      const visible = getVisibleIntakeQuestions({
-        solutionType: 'existing_tool',
-        lifecycleStage: 'ideation',
-      });
-      // Target dates still show based on lifecycle
-      expect(visible.has('intake-q12')).toBe(true);
-      expect(visible.has('intake-q13')).toBe(true);
-    });
-
-    it('citizen_development shows same questions as custom', () => {
-      const citizenDev = getVisibleIntakeQuestions({
-        solutionType: 'citizen_development',
-        lifecycleStage: 'poc',
-      });
-      const custom = getVisibleIntakeQuestions({
-        solutionType: 'custom',
-        lifecycleStage: 'poc',
-      });
-      expect(citizenDev.size).toBe(custom.size);
+      expect(visible.size).toBe(29);
     });
   });
 
   describe('getVisibleQuestions (ordered array)', () => {
     it('returns ordered array of visible question IDs', () => {
       const ids = getVisibleQuestions({});
-      expect(ids.length).toBe(14);
+      expect(ids.length).toBe(29);
       expect(ids[0]).toBe('intake-q1');
-      expect(ids[ids.length - 1]).toBe('intake-q16');
-    });
-
-    it('includes target dates in order when lifecycle is early', () => {
-      const ids = getVisibleQuestions({ lifecycleStage: 'ideation' });
-      const q12idx = ids.indexOf('intake-q12');
-      const q13idx = ids.indexOf('intake-q13');
-      expect(q12idx).toBeGreaterThan(-1);
-      expect(q13idx).toBe(q12idx + 1);
     });
   });
 
@@ -196,75 +152,110 @@ describe('Intake Branching Rules', () => {
       expect(stages).toContain('review');
     });
 
-    it('always includes quick-intake stage', () => {
+    it('always includes section-a stage', () => {
       const stages = getVisibleIntakeStages({});
-      expect(stages).toContain('quick-intake');
+      expect(stages).toContain('section-a');
     });
 
-    it('always includes strategic-alignment stage', () => {
+    it('always includes section-b stage', () => {
       const stages = getVisibleIntakeStages({});
-      expect(stages).toContain('strategic-alignment');
+      expect(stages).toContain('section-b');
     });
 
-    it('always includes value-capture stage', () => {
+    it('always includes section-c stage', () => {
       const stages = getVisibleIntakeStages({});
-      expect(stages).toContain('value-capture');
+      expect(stages).toContain('section-c');
     });
 
     it('returns all 4 stages in order', () => {
       const stages = getVisibleIntakeStages({});
       expect(stages).toEqual([
-        'quick-intake',
-        'strategic-alignment',
-        'value-capture',
+        'section-a',
+        'section-b',
+        'section-c',
         'review',
       ]);
     });
   });
 
   describe('getWarningBanners', () => {
-    it('returns empty array for clean state', () => {
+    it('returns empty array (banners are now inline)', () => {
       const banners = getWarningBanners({});
       expect(banners).toEqual([]);
     });
+  });
 
-    it('returns empty array when ethical AI is aligned', () => {
-      const banners = getWarningBanners({ ethicalAiAligned: true });
+  describe('getInlineBanners', () => {
+    it('returns empty array for clean state', () => {
+      const banners = getInlineBanners({});
       expect(banners).toEqual([]);
     });
 
-    it('returns red banner when ethical AI is not aligned', () => {
-      const banners = getWarningBanners({ ethicalAiAligned: false });
-      expect(banners).toHaveLength(1);
-      expect(banners[0].severity).toBe('red');
-      expect(banners[0].id).toBe('ethical-misalignment');
+    it('shows non-US banner when EU/EEA selected', () => {
+      const banners = getInlineBanners({ deploymentRegions: ['eu_eea'] });
+      const banner = banners.find((b) => b.id === 'non-us-regions');
+      expect(banner).toBeDefined();
+      expect(banner?.severity).toBe('info');
+      expect(banner?.afterQuestionId).toBe('intake-q11a');
     });
 
-    it('returns amber banner when prohibited practices = yes', () => {
-      const banners = getWarningBanners({ prohibitedPractices: 'yes' });
-      expect(banners).toHaveLength(1);
-      expect(banners[0].severity).toBe('amber');
-      expect(banners[0].id).toBe('prohibited-practices');
+    it('does not show non-US banner when only US selected', () => {
+      const banners = getInlineBanners({ deploymentRegions: ['us_only'] });
+      expect(banners.find((b) => b.id === 'non-us-regions')).toBeUndefined();
     });
 
-    it('returns no banner when prohibited practices = no', () => {
-      const banners = getWarningBanners({ prohibitedPractices: 'no' });
-      expect(banners).toEqual([]);
-    });
-
-    it('returns no banner when prohibited practices = none', () => {
-      const banners = getWarningBanners({ prohibitedPractices: 'none' });
-      expect(banners).toEqual([]);
-    });
-
-    it('returns both banners when both triggers active', () => {
-      const banners = getWarningBanners({
-        ethicalAiAligned: false,
-        prohibitedPractices: 'yes',
+    it('shows unreviewed production warning', () => {
+      const banners = getInlineBanners({
+        lifecycleStage: 'in_production',
+        previouslyReviewed: 'no',
       });
-      expect(banners).toHaveLength(2);
-      expect(banners.find((b) => b.severity === 'red')).toBeDefined();
-      expect(banners.find((b) => b.severity === 'amber')).toBeDefined();
+      const banner = banners.find((b) => b.id === 'unreviewed-production');
+      expect(banner).toBeDefined();
+      expect(banner?.severity).toBe('warning');
+      expect(banner?.afterQuestionId).toBe('intake-q13');
+    });
+
+    it('does not show unreviewed warning when stage is not production', () => {
+      const banners = getInlineBanners({
+        lifecycleStage: 'idea_planning',
+        previouslyReviewed: 'no',
+      });
+      expect(banners.find((b) => b.id === 'unreviewed-production')).toBeUndefined();
+    });
+
+    it('does not show unreviewed warning when previously reviewed', () => {
+      const banners = getInlineBanners({
+        lifecycleStage: 'in_production',
+        previouslyReviewed: 'yes',
+      });
+      expect(banners.find((b) => b.id === 'unreviewed-production')).toBeUndefined();
+    });
+
+    it('shows high-risk trigger banner when triggers selected', () => {
+      const banners = getInlineBanners({
+        highRiskTriggers: ['insurance_pricing'],
+      });
+      const banner = banners.find((b) => b.id === 'high-risk-triggers');
+      expect(banner).toBeDefined();
+      expect(banner?.severity).toBe('info');
+      expect(banner?.afterQuestionId).toBe('intake-q14');
+    });
+
+    it('does not show high-risk banner when only none_of_above selected', () => {
+      const banners = getInlineBanners({
+        highRiskTriggers: ['none_of_above'],
+      });
+      expect(banners.find((b) => b.id === 'high-risk-triggers')).toBeUndefined();
+    });
+
+    it('shows multiple banners when multiple conditions met', () => {
+      const banners = getInlineBanners({
+        deploymentRegions: ['eu_eea'],
+        lifecycleStage: 'in_production',
+        previouslyReviewed: 'no',
+        highRiskTriggers: ['insurance_pricing'],
+      });
+      expect(banners.length).toBe(3);
     });
   });
 
@@ -278,14 +269,14 @@ describe('Intake Branching Rules', () => {
     it('counts answered text questions', () => {
       const progress = calculateProgress({
         useCaseName: 'Test Use Case',
-        businessArea: 'Insurance',
+        businessArea: 'claims',
       });
       expect(progress.answered).toBe(2);
     });
 
     it('counts answered boolean questions', () => {
       const progress = calculateProgress({
-        ethicalAiAligned: false,
+        reflectedInBudget: true,
       });
       expect(progress.answered).toBe(1);
     });
@@ -304,19 +295,6 @@ describe('Intake Branching Rules', () => {
       expect(progress.answered).toBe(1);
     });
 
-    it('adjusts total based on visible questions', () => {
-      const minProgress = calculateProgress({
-        lifecycleStage: 'in_production',
-        reflectedInBudget: 'none',
-      });
-      const maxProgress = calculateProgress({
-        lifecycleStage: 'ideation',
-        reflectedInBudget: 'yes',
-      });
-      expect(maxProgress.total).toBe(17);
-      expect(minProgress.total).toBe(14);
-    });
-
     it('returns estimated minutes remaining', () => {
       const progress = calculateProgress({});
       expect(progress.estimatedMinutes).toBeGreaterThan(0);
@@ -326,11 +304,11 @@ describe('Intake Branching Rules', () => {
       const empty = calculateProgress({});
       const partial = calculateProgress({
         useCaseName: 'Test',
-        solutionType: 'custom',
-        businessPurpose: 'Testing the form',
-        businessArea: 'Technology',
         useCaseOwner: 'John Doe',
-        ethicalAiAligned: true,
+        executiveSponsor: 'Jane Smith',
+        businessArea: 'it',
+        businessProblem: 'Need to automate data processing',
+        howAiHelps: 'AI will classify and route documents',
       });
       expect(partial.estimatedMinutes).toBeLessThan(empty.estimatedMinutes);
     });

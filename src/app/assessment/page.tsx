@@ -98,11 +98,11 @@ function AssessmentPage() {
         const stage = uc.intake.lifecycleStage;
         prePopulate({
           currentStage:
-            stage === 'poc'
+            stage === 'development_poc'
               ? 'poc'
-              : stage === 'in_development'
+              : stage === 'testing_pilot'
                 ? 'in_development'
-                : stage === 'ideation'
+                : stage === 'idea_planning'
                   ? 'ideation'
                   : 'backlog',
           plannedPocDate: uc.intake.targetPocQuarter,

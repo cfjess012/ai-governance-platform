@@ -60,7 +60,7 @@ function UseCaseRow({ useCase }: { useCase: AIUseCase }) {
         </Link>
       </td>
       <td className="px-4 py-3 text-sm text-slate-600">
-        {useCase.intake.solutionType?.replace('_', ' ')}
+        {useCase.intake.aiType?.replace('_', ' ')}
       </td>
       <td className="px-4 py-3 text-sm text-slate-600">
         {useCase.intake.lifecycleStage?.replace('_', ' ')}
@@ -103,7 +103,7 @@ export default function InventoryPage() {
       result = result.filter(
         (uc) =>
           uc.intake.useCaseName?.toLowerCase().includes(q) ||
-          uc.intake.businessPurpose?.toLowerCase().includes(q) ||
+          uc.intake.businessProblem?.toLowerCase().includes(q) ||
           uc.intake.businessArea?.toLowerCase().includes(q),
       );
     }
@@ -246,7 +246,7 @@ export default function InventoryPage() {
                   Name {sortField === 'name' && (sortDir === 'asc' ? '\u2191' : '\u2193')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Solution Type
+                  AI Type
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   Lifecycle

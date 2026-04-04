@@ -5,11 +5,15 @@
  */
 
 export interface IntakeClassificationInput {
-  businessPurpose?: string;
-  ethicalAiAligned?: boolean;
-  prohibitedPractices?: string;
+  businessProblem?: string;
+  howAiHelps?: string;
   businessArea?: string;
-  solutionType?: string;
+  aiType?: string;
+  buildOrAcquire?: string;
+  highRiskTriggers?: string[];
+  deploymentRegions?: string[];
+  worstOutcome?: string;
+  humanOversight?: string;
 }
 
 export type EuRiskIndicator =
@@ -36,20 +40,17 @@ export interface IntakeClassificationResult {
   riskSignals: RiskSignal[];
 }
 
-const FINANCIAL_KEYWORDS = [
-  'insurance',
-  'investment',
-  'credit',
-  'lending',
-  'underwriting',
-  'annuity',
-  'annuities',
-  'retirement',
-  'wealth',
-  'asset management',
-  'mortgage',
-  'loan',
-];
+/** High-risk trigger values that map to prohibited/high-risk EU AI Act categories */
+const PROHIBITED_TRIGGERS = new Set(['fine_tuning_llm', 'biometric_id', 'emotion_detection']);
+
+/** High-risk trigger values that map to financial services Annex III */
+const FINANCIAL_TRIGGERS = new Set(['insurance_pricing', 'investment_advice', 'credit_lending']);
+
+/** Business area values that indicate financial services */
+const FINANCIAL_AREAS = new Set(['actuarial', 'claims', 'investments', 'underwriting', 'finance']);
+
+/** High-risk trigger values that map to employment Annex III */
+const EMPLOYMENT_TRIGGERS = new Set(['hiring_workforce']);
 
 const EMPLOYMENT_KEYWORDS = [
   'hiring',
@@ -72,35 +73,44 @@ function matchesKeywords(text: string, keywords: string[]): boolean {
  * Classify EU AI Act risk tier based on intake answers.
  */
 export function classifyEuAiActIntake(input: IntakeClassificationInput): EuAiActIntakeResult {
-  // Q7: Prohibited practices (fine-tuning LLMs, biometric EU, emotion detection EU)
-  if (input.prohibitedPractices === 'yes') {
+  const triggers = input.highRiskTriggers ?? [];
+
+  // Prohibited/heavily regulated practices
+  if (triggers.some((t) => PROHIBITED_TRIGGERS.has(t))) {
     return {
       indicator: 'potentially_high_or_prohibited',
       label: 'Potentially High Risk or Prohibited',
       description:
-        'This use case involves practices (LLM fine-tuning, biometric scanning, or emotion detection) that may be prohibited or heavily regulated under the EU AI Act.',
+        'This use case involves practices (LLM fine-tuning, biometric identification, or emotion detection) that may be prohibited or heavily regulated under the EU AI Act.',
       color: 'red',
     };
   }
 
-  // Q8: Business area involves financial services
-  if (input.businessArea && matchesKeywords(input.businessArea, FINANCIAL_KEYWORDS)) {
+  // Financial services high-risk triggers
+  if (
+    triggers.some((t) => FINANCIAL_TRIGGERS.has(t)) ||
+    FINANCIAL_AREAS.has(input.businessArea ?? '')
+  ) {
     return {
       indicator: 'likely_high_financial',
       label: 'Likely High Risk (Annex III \u2013 Financial Services)',
       description:
-        'The business area suggests this use case falls under EU AI Act Annex III high-risk category for financial services.',
+        'This use case involves financial services decisions, which fall under EU AI Act Annex III high-risk category.',
       color: 'amber',
     };
   }
 
-  // Q5: Business purpose mentions employment/hiring
-  if (input.businessPurpose && matchesKeywords(input.businessPurpose, EMPLOYMENT_KEYWORDS)) {
+  // Employment high-risk triggers or keyword match
+  const descText = [input.businessProblem ?? '', input.howAiHelps ?? ''].join(' ');
+  if (
+    triggers.some((t) => EMPLOYMENT_TRIGGERS.has(t)) ||
+    matchesKeywords(descText, EMPLOYMENT_KEYWORDS)
+  ) {
     return {
       indicator: 'likely_high_employment',
       label: 'Likely High Risk (Annex III \u2013 Employment)',
       description:
-        'The business purpose suggests this use case involves employment-related decisions, which are high-risk under EU AI Act Annex III.',
+        'This use case involves employment-related decisions, which are high-risk under EU AI Act Annex III.',
       color: 'amber',
     };
   }
@@ -119,30 +129,60 @@ export function classifyEuAiActIntake(input: IntakeClassificationInput): EuAiAct
  */
 export function detectRiskSignals(input: IntakeClassificationInput): RiskSignal[] {
   const signals: RiskSignal[] = [];
+  const triggers = input.highRiskTriggers ?? [];
 
-  // Q6: Ethical AI misalignment
-  if (input.ethicalAiAligned === false) {
+  // High-risk triggers selected
+  const hasHighRisk = triggers.length > 0 && !triggers.every((t) => t === 'none_of_above');
+  if (hasHighRisk) {
     signals.push({
-      id: 'ethical_misalignment',
-      label: 'Ethical AI misalignment \u2014 ERAI review required',
-      severity: 'red',
-    });
-  }
-
-  // Q7: Involves regulated practices
-  if (input.prohibitedPractices === 'yes') {
-    signals.push({
-      id: 'regulated_practices',
-      label: 'Involves regulated AI practices \u2014 additional assessment required',
+      id: 'high_risk_triggers',
+      label: 'High-risk decision triggers selected \u2014 comprehensive assessment required',
       severity: 'amber',
     });
   }
 
-  // Q2: Citizen Development
-  if (input.solutionType === 'citizen_development') {
+  // Citizen development
+  if (input.buildOrAcquire === 'citizen_development') {
     signals.push({
       id: 'citizen_development',
       label: 'Citizen development \u2014 governance guardrails needed',
+      severity: 'blue',
+    });
+  }
+
+  // Unknown build type
+  if (input.buildOrAcquire === 'not_sure_yet') {
+    signals.push({
+      id: 'unknown_build',
+      label: 'Build/acquire type undetermined \u2014 review needed',
+      severity: 'blue',
+    });
+  }
+
+  // Serious worst outcome
+  if (input.worstOutcome === 'serious') {
+    signals.push({
+      id: 'serious_outcome',
+      label: 'Serious potential harm identified \u2014 elevated review priority',
+      severity: 'red',
+    });
+  }
+
+  // Fully autonomous with no human oversight
+  if (input.humanOversight === 'fully_autonomous') {
+    signals.push({
+      id: 'fully_autonomous',
+      label: 'Fully autonomous operation \u2014 enhanced controls required',
+      severity: 'amber',
+    });
+  }
+
+  // EU/EEA deployment
+  const regions = input.deploymentRegions ?? [];
+  if (regions.includes('eu_eea')) {
+    signals.push({
+      id: 'eu_deployment',
+      label: 'EU/EEA deployment \u2014 EU AI Act obligations apply',
       severity: 'blue',
     });
   }

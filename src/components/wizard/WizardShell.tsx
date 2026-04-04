@@ -1,34 +1,56 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/ui/Button';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { intakeQuestions, intakeStages } from '@/config/questions';
+import { useAiAnalysis } from '@/lib/ai/use-ai-analysis';
 import {
   calculateProgress,
   getVisibleIntakeQuestions,
   getVisibleIntakeStages,
-  getWarningBanners,
 } from '@/lib/questions/branching-rules';
 import { intakeSchema } from '@/lib/questions/intake-schema';
+import { useAiStore } from '@/lib/store/ai-store';
 import { useInventoryStore } from '@/lib/store/inventory-store';
 import { useWizardStore } from '@/lib/store/wizard-store';
+import { AiToggle } from './AiToggle';
+import { AiUnavailableToast } from './AiUnavailableToast';
 import { ClassificationSidebar } from './ClassificationSidebar';
 import { ReviewStep } from './ReviewStep';
 import { WizardStep } from './WizardStep';
 
-/** Map stage to required fields for per-stage validation */
 const stageRequiredFields: Record<string, string[]> = {
-  'quick-intake': [
+  'section-a': [
     'useCaseName',
-    'solutionType',
-    'businessPurpose',
-    'businessArea',
     'useCaseOwner',
-    'ethicalAiAligned',
-    'prohibitedPractices',
+    'executiveSponsor',
+    'businessArea',
+    'businessProblem',
+    'howAiHelps',
+    'aiType',
+    'buildOrAcquire',
+    'thirdPartyInvolved',
+    'usesFoundationModel',
+    'deploymentRegions',
+    'lifecycleStage',
+    'previouslyReviewed',
+    'highRiskTriggers',
+    'whoUsesSystem',
+    'whoAffected',
+    'worstOutcome',
   ],
-  'strategic-alignment': ['lifecycleStage', 'useStatus', 'strategicPriority'],
-  'value-capture': ['valueDescription'],
+  'section-b': [
+    'dataSensitivity',
+    'humanOversight',
+    'differentialTreatment',
+    'peopleAffectedCount',
+  ],
+  'section-c': ['strategicPriority'],
+};
+
+const conditionalRequiredFields: Record<string, { parentField: string; parentValue: string }> = {
+  vendorName: { parentField: 'thirdPartyInvolved', parentValue: 'yes' },
+  auditability: { parentField: 'thirdPartyInvolved', parentValue: 'yes' },
+  whichModels: { parentField: 'usesFoundationModel', parentValue: 'yes' },
 };
 
 function validateStage(
@@ -38,44 +60,52 @@ function validateStage(
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   if (stageId === 'review') return errors;
-
   const fields = stageRequiredFields[stageId] ?? [];
-
   for (const field of fields) {
     const question = intakeQuestions.find((q) => q.field === field);
     if (!question) continue;
     if (!visibleQuestionIds.has(question.id)) continue;
     if (!question.required) continue;
-
     const value = formData[field];
-
     if (value === undefined || value === null || value === '') {
       errors[field] = `${question.label} is required`;
     } else if (typeof value === 'string' && value.trim() === '') {
       errors[field] = `${question.label} is required`;
+    } else if (Array.isArray(value) && value.length === 0) {
+      errors[field] = `${question.label} is required`;
     }
   }
-
-  // Min-length checks
-  if (
-    stageId === 'quick-intake' &&
-    typeof formData.businessPurpose === 'string' &&
-    formData.businessPurpose.length > 0 &&
-    formData.businessPurpose.length < 10
-  ) {
-    errors.businessPurpose = 'Description must be at least 10 characters';
+  if (stageId === 'section-a') {
+    for (const [field, condition] of Object.entries(conditionalRequiredFields)) {
+      if (formData[condition.parentField] === condition.parentValue) {
+        const question = intakeQuestions.find((q) => q.field === field);
+        if (!question) continue;
+        const value = formData[field];
+        if (value === undefined || value === null || value === '') {
+          errors[field] = `${question.label} is required`;
+        }
+      }
+    }
+    for (const field of ['businessProblem', 'howAiHelps']) {
+      if (
+        typeof formData[field] === 'string' &&
+        (formData[field] as string).length > 0 &&
+        (formData[field] as string).length < 10
+      ) {
+        errors[field] = 'Description must be at least 10 characters';
+      }
+    }
   }
-  if (
-    stageId === 'value-capture' &&
-    typeof formData.valueDescription === 'string' &&
-    formData.valueDescription.length > 0 &&
-    formData.valueDescription.length < 10
-  ) {
-    errors.valueDescription = 'Value description must be at least 10 characters';
-  }
-
   return errors;
 }
+
+/** Short labels for the middle sidebar */
+const stageShortLabels: Record<string, string> = {
+  'section-a': 'General',
+  'section-b': 'Risk Details',
+  'section-c': 'Portfolio',
+  review: 'Review & Submit',
+};
 
 export function WizardShell() {
   const {
@@ -97,7 +127,12 @@ export function WizardShell() {
 
   const [stageErrors, setStageErrors] = useState<Record<string, string>>({});
   const [submitResult, setSubmitResult] = useState<{ id: string } | null>(null);
-  const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  const { analyzeBusinessPurpose, runConsistencyCheck } = useAiAnalysis();
+  const aiEnabled = useAiStore((s) => s.enabled);
+  const resetAiResults = useAiStore((s) => s.resetResults);
+  const consistencyRanRef = useRef(false);
 
   const visibleQuestionIds = useMemo(() => getVisibleIntakeQuestions(formData), [formData]);
   const visibleStageIds = useMemo(() => getVisibleIntakeStages(formData), [formData]);
@@ -105,23 +140,20 @@ export function WizardShell() {
     () => intakeStages.filter((s) => visibleStageIds.includes(s.id)),
     [visibleStageIds],
   );
-  const warningBanners = useMemo(() => getWarningBanners(formData), [formData]);
 
   const currentStage = visibleStages[currentStepIndex] ?? visibleStages[0];
   const progress = useMemo(() => calculateProgress(formData), [formData]);
 
-  // Welcome-back detection
   useEffect(() => {
-    const hasData = Object.keys(formData).length > 0;
-    const isReturning = hasData && currentStepIndex > 0;
-    if (isReturning && !isSubmitted) {
-      setShowWelcomeBack(true);
+    if (currentStage?.id === 'review' && aiEnabled && !consistencyRanRef.current) {
+      consistencyRanRef.current = true;
+      runConsistencyCheck(formData);
     }
-    // Only run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (currentStage?.id !== 'review') {
+      consistencyRanRef.current = false;
+    }
+  }, [currentStage?.id, aiEnabled, formData, runConsistencyCheck]);
 
-  // Auto-save draft
   useEffect(() => {
     if (!isDirty) return;
     const timer = setTimeout(async () => {
@@ -133,9 +165,7 @@ export function WizardShell() {
           body: JSON.stringify({ formData, draftId: useWizardStore.getState().draftId }),
         });
         const result = await response.json();
-        if (result.data?.id) {
-          setDraftId(result.data.id);
-        }
+        if (result.data?.id) setDraftId(result.data.id);
         markSaved();
       } catch {
         setSaving(false);
@@ -153,20 +183,31 @@ export function WizardShell() {
         delete next[field];
         return next;
       });
+      if (field === 'businessProblem' && typeof value === 'string') {
+        analyzeBusinessPurpose(value, { ...formData, [field]: value });
+      }
     },
-    [updateField],
+    [updateField, analyzeBusinessPurpose, formData],
   );
+
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleNext = useCallback(() => {
     if (!currentStage) return;
     const errors = validateStage(currentStage.id, formData, visibleQuestionIds);
     if (Object.keys(errors).length > 0) {
       setStageErrors(errors);
+      const firstErrorField = Object.keys(errors)[0];
+      if (firstErrorField) {
+        const el = document.getElementById(firstErrorField);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
     setStageErrors({});
     if (currentStepIndex < visibleStages.length - 1) {
       setCurrentStep(currentStepIndex + 1);
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [
     currentStage,
@@ -181,6 +222,7 @@ export function WizardShell() {
     setStageErrors({});
     if (currentStepIndex > 0) {
       setCurrentStep(currentStepIndex - 1);
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [currentStepIndex, setCurrentStep]);
 
@@ -188,6 +230,7 @@ export function WizardShell() {
     (stageIndex: number) => {
       setStageErrors({});
       setCurrentStep(stageIndex);
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     },
     [setCurrentStep],
   );
@@ -198,9 +241,7 @@ export function WizardShell() {
       const errors: Record<string, string> = {};
       for (const issue of parsed.error.issues) {
         const field = issue.path[0];
-        if (typeof field === 'string') {
-          errors[field] = issue.message;
-        }
+        if (typeof field === 'string') errors[field] = issue.message;
       }
       setStageErrors(errors);
       return;
@@ -214,7 +255,6 @@ export function WizardShell() {
       });
       const result = await response.json();
       if (result.data) {
-        // Add to inventory store
         const now = new Date().toISOString();
         addUseCase({
           id: result.data.id,
@@ -237,49 +277,53 @@ export function WizardShell() {
     }
   }, [formData, setSaving, markSaved, setSubmitted, addUseCase]);
 
-  // Submitted confirmation
+  // Success
   if (isSubmitted && submitResult) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-        <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-green-100 flex items-center justify-center">
-          <svg
-            aria-hidden="true"
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#16a34a"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">Intake Submitted Successfully</h1>
-        <p className="text-slate-600 mb-1">
-          Your AI use case intake has been submitted for review.
-        </p>
-        <p className="text-sm text-slate-500 mb-8">
-          Reference ID: <span className="font-mono text-slate-700">{submitResult.id}</span>
-        </p>
-        <div className="flex gap-3 justify-center">
-          <Button
-            variant="outline"
-            onClick={() => {
-              reset();
-              setSubmitResult(null);
-            }}
-          >
-            Submit Another
-          </Button>
-          <Button
-            onClick={() => {
-              window.location.href = '/inventory';
-            }}
-          >
-            Go to Inventory
-          </Button>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center max-w-sm">
+          <div className="w-12 h-12 mx-auto mb-5 rounded-full bg-green-50 flex items-center justify-center">
+            <svg
+              aria-hidden="true"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#16a34a"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-semibold text-slate-900 mb-1">Intake Submitted</h1>
+          <p className="text-sm text-slate-500 mb-1">
+            Your use case has been submitted for review.
+          </p>
+          <p className="text-xs text-slate-400 font-mono mb-8">{submitResult.id}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                reset();
+                resetAiResults();
+                setSubmitResult(null);
+              }}
+              className="px-4 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+            >
+              Submit Another
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = '/inventory';
+              }}
+              className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              View Inventory
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -289,171 +333,208 @@ export function WizardShell() {
   const isReviewStage = currentStage?.id === 'review';
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      {/* Welcome back prompt */}
-      {showWelcomeBack && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between animate-fade-in">
-          <div>
-            <p className="text-sm font-medium text-blue-900">Welcome back!</p>
-            <p className="text-xs text-blue-700">
-              You have an in-progress intake. Continue where you left off?
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                reset();
-                setShowWelcomeBack(false);
-              }}
-            >
-              Start Fresh
-            </Button>
-            <Button size="sm" onClick={() => setShowWelcomeBack(false)}>
-              Continue
-            </Button>
+    <>
+      {/* Clear dialog */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-xl shadow-lg p-6 max-w-sm mx-4 animate-fade-in">
+            <h3 className="text-base font-semibold text-slate-900 mb-1">Clear form?</h3>
+            <p className="text-sm text-slate-500 mb-5">This can&apos;t be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowClearConfirm(false)}
+                className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  reset();
+                  resetAiResults();
+                  setStageErrors({});
+                  setShowClearConfirm(false);
+                }}
+                className="px-3 py-1.5 text-sm border border-red-200 rounded-lg text-red-600 hover:bg-red-50"
+              >
+                Clear
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Warning banners from Stage 1 triggers */}
-      {warningBanners.map((banner) => (
-        <div
-          key={banner.id}
-          className={`mb-4 px-4 py-3 rounded-lg border text-sm font-medium ${
-            banner.severity === 'red'
-              ? 'bg-red-50 border-red-200 text-red-800'
-              : 'bg-amber-50 border-amber-200 text-amber-800'
-          }`}
-        >
-          {banner.message}
-        </div>
-      ))}
+      <div className="flex flex-1 overflow-hidden">
+        {/* ── Middle sidebar ── */}
+        <aside className="w-[220px] shrink-0 border-r border-slate-200 bg-white flex flex-col overflow-y-auto">
+          {/* Title */}
+          <div className="px-5 pt-5 pb-3">
+            <h2 className="text-[13px] font-semibold text-slate-900">New Intake</h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">{progress.percentage}% complete</p>
+          </div>
 
-      {/* Header + Progress */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">AI Use Case Intake</h1>
-        <p className="text-sm text-slate-500 mb-4">
-          {progress.answered} of {progress.total} questions answered
-          {progress.percentage < 100 && (
-            <span className="text-slate-400">
-              {' '}
-              &middot; ~{progress.estimatedMinutes} min remaining
-            </span>
-          )}
-        </p>
-        <div className="w-full bg-slate-100 rounded-full h-1.5">
-          <div
-            className="bg-[#00539B] h-1.5 rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${progress.percentage}%` }}
-          />
-        </div>
-      </div>
+          {/* Sections nav */}
+          <div className="px-3 pb-3">
+            <p className="px-2 mb-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
+              Sections
+            </p>
+            {visibleStages.map((stage, index) => {
+              const isCurrent = index === currentStepIndex;
+              const isPast = index < currentStepIndex;
+              const isClickable = index <= currentStepIndex;
+              return (
+                <button
+                  key={stage.id}
+                  type="button"
+                  onClick={() => {
+                    if (isClickable) {
+                      setStageErrors({});
+                      setCurrentStep(index);
+                    }
+                  }}
+                  className={`w-full text-left px-3 py-[7px] rounded-lg text-[13px] mb-px transition-colors ${
+                    isCurrent
+                      ? 'bg-blue-50 text-blue-600 font-medium'
+                      : isPast
+                        ? 'text-slate-600 hover:bg-slate-50 cursor-pointer'
+                        : 'text-slate-400 cursor-default'
+                  }`}
+                >
+                  {stageShortLabels[stage.id] ?? stage.title}
+                </button>
+              );
+            })}
+          </div>
 
-      {/* Stage navigation pills */}
-      <div className="flex gap-1.5 mb-8 overflow-x-auto pb-1">
-        {visibleStages.map((stage, index) => {
-          const isCurrent = index === currentStepIndex;
-          const isPast = index < currentStepIndex;
-          return (
-            <button
-              key={stage.id}
-              type="button"
-              onClick={() => {
-                if (index <= currentStepIndex) {
-                  setStageErrors({});
-                  setCurrentStep(index);
-                }
-              }}
-              className={`
-                px-4 py-2 text-xs font-medium rounded-lg whitespace-nowrap transition-all
-                ${
-                  isCurrent
-                    ? 'bg-[#00539B] text-white shadow-sm'
-                    : isPast
-                      ? 'bg-[#00539B]/10 text-[#00539B] hover:bg-[#00539B]/20 cursor-pointer'
-                      : 'bg-slate-100 text-slate-400 cursor-default'
-                }
-              `}
-            >
-              <span className="mr-1.5">{index + 1}.</span>
-              {stage.title}
-              {stage.subtitle && <span className="ml-1.5 opacity-70">{stage.subtitle}</span>}
-            </button>
-          );
-        })}
-      </div>
+          <div className="border-t border-slate-100 mx-4" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-10 gap-8">
-        {/* Main form area */}
-        <div className="lg:col-span-7">
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-            {isReviewStage ? (
-              <ReviewStep
-                values={formData}
-                visibleQuestionIds={visibleQuestionIds}
-                onEditStep={handleEditStage}
-              />
-            ) : (
-              currentStage && (
-                <WizardStep
-                  stepId={currentStage.id}
-                  title={currentStage.title}
-                  sections={currentStage.sections}
-                  visibleQuestionIds={visibleQuestionIds}
-                  errors={stageErrors}
+          {/* Settings */}
+          <div className="px-3 py-3">
+            <p className="px-2 mb-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
+              Settings
+            </p>
+            <div className="px-2 py-1">
+              <AiToggle />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 mx-4" />
+
+          {/* Classification */}
+          <div className="px-3 py-3 flex-1">
+            <ClassificationSidebar />
+          </div>
+        </aside>
+
+        {/* ── Main content ── */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Top bar */}
+          <header className="shrink-0 h-14 px-8 flex items-center justify-between border-b border-slate-200 bg-white">
+            <h1 className="text-lg font-semibold text-slate-900">
+              {currentStage?.title ?? 'Intake'}
+            </h1>
+            <div className="flex items-center gap-4">
+              {isSaving && <span className="text-xs text-slate-400">Saving...</span>}
+              {lastSavedAt && !isSaving && (
+                <span className="text-xs text-slate-400">
+                  Saved {new Date(lastSavedAt).toLocaleTimeString()}
+                </span>
+              )}
+              {progress.answered > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowClearConfirm(true)}
+                  className="text-xs text-slate-400 hover:text-slate-600"
+                >
+                  Clear form
+                </button>
+              )}
+            </div>
+          </header>
+
+          {/* Progress */}
+          <div className="h-[2px] bg-slate-100 shrink-0">
+            <div
+              className="h-[2px] bg-blue-500 transition-all duration-500 ease-out"
+              style={{ width: `${progress.percentage}%` }}
+            />
+          </div>
+
+          {/* Scrollable form */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto bg-slate-50/50">
+            <div className="max-w-[640px] mx-auto px-8 py-8">
+              {isReviewStage ? (
+                <ReviewStep
                   values={formData}
-                  onFieldChange={handleFieldChange}
+                  visibleQuestionIds={visibleQuestionIds}
+                  onEditStep={handleEditStage}
                 />
-              )
-            )}
+              ) : (
+                currentStage && (
+                  <WizardStep
+                    stepId={currentStage.id}
+                    title={currentStage.title}
+                    sections={currentStage.sections}
+                    visibleQuestionIds={visibleQuestionIds}
+                    errors={stageErrors}
+                    values={formData}
+                    onFieldChange={handleFieldChange}
+                    aiEnabled={aiEnabled}
+                  />
+                )
+              )}
 
-            {isReviewStage && Object.keys(stageErrors).length > 0 && (
-              <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm font-medium text-red-800 mb-2">
-                  Please fix the following before submitting:
-                </p>
-                <ul className="space-y-1">
-                  {Object.entries(stageErrors).map(([field, msg]) => (
-                    <li key={field} className="text-sm text-red-700">
-                      &bull; {msg}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              {isReviewStage && Object.keys(stageErrors).length > 0 && (
+                <div className="mt-6 p-4 border border-red-200 rounded-lg bg-white">
+                  <p className="text-sm font-medium text-red-600 mb-2">
+                    Please fix before submitting:
+                  </p>
+                  <ul className="space-y-1">
+                    {Object.entries(stageErrors).map(([field, msg]) => (
+                      <li key={field} className="text-sm text-red-500">
+                        &bull; {msg}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-            <div className="flex justify-between mt-8 pt-6 border-t border-slate-100">
-              <Button variant="outline" onClick={handlePrev} disabled={currentStepIndex === 0}>
-                Previous
-              </Button>
-              <div className="flex gap-3 items-center">
-                {isSaving && <span className="text-xs text-slate-400">Saving...</span>}
-                {lastSavedAt && !isSaving && (
-                  <span className="text-xs text-slate-400">
-                    Saved {new Date(lastSavedAt).toLocaleTimeString()}
-                  </span>
-                )}
+              {/* Nav buttons */}
+              <div className="flex justify-between mt-10 pt-6 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  disabled={currentStepIndex === 0}
+                  className="px-4 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed bg-white"
+                >
+                  Previous
+                </button>
                 {isLastStage ? (
-                  <Button onClick={handleFormSubmit} disabled={isSaving}>
+                  <button
+                    type="button"
+                    onClick={handleFormSubmit}
+                    disabled={isSaving}
+                    className="px-5 py-2 text-sm font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                  >
                     Submit Intake
-                  </Button>
+                  </button>
                 ) : (
-                  <Button onClick={handleNext}>Next</Button>
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    className="px-5 py-2 text-sm font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  >
+                    Continue
+                  </button>
                 )}
               </div>
             </div>
           </div>
         </div>
-
-        {/* Classification sidebar */}
-        <div className="lg:col-span-3">
-          <div className="sticky top-20">
-            <ClassificationSidebar />
-          </div>
-        </div>
       </div>
-    </div>
+
+      <AiUnavailableToast />
+    </>
   );
 }

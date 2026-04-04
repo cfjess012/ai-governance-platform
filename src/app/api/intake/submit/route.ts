@@ -19,11 +19,15 @@ export async function POST(request: NextRequest) {
 
     // Run intake classification
     const classification = classifyIntake({
-      businessPurpose: data.businessPurpose,
-      ethicalAiAligned: data.ethicalAiAligned,
-      prohibitedPractices: data.prohibitedPractices,
+      businessProblem: data.businessProblem,
+      howAiHelps: data.howAiHelps,
       businessArea: data.businessArea,
-      solutionType: data.solutionType,
+      aiType: data.aiType,
+      buildOrAcquire: data.buildOrAcquire,
+      highRiskTriggers: data.highRiskTriggers,
+      deploymentRegions: data.deploymentRegions,
+      worstOutcome: data.worstOutcome,
+      humanOversight: data.humanOversight,
     });
 
     const id = `intake-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
