@@ -68,6 +68,9 @@ export function AiConsistencyCheck({ result, loading, onFixField }: AiConsistenc
         <span className="flex items-center gap-2 font-medium">
           <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
           {issueCount} {issueCount === 1 ? 'suggestion' : 'suggestions'}
+          <span className="font-normal text-slate-400">
+            &mdash; advisory only, does not block submission
+          </span>
         </span>
         <svg
           aria-hidden="true"
@@ -85,6 +88,14 @@ export function AiConsistencyCheck({ result, loading, onFixField }: AiConsistenc
 
       {expanded && (
         <div className="border-t border-slate-100 divide-y divide-slate-100">
+          <div className="px-4 py-2.5 bg-slate-50/50">
+            <p className="text-xs text-slate-400">
+              These suggestions help you catch potential issues before the governance team reviews
+              your submission. They do not prevent you from submitting. The governance team will
+              also see these flags during their review.
+            </p>
+          </div>
+
           {result.contradictions.map((c) => (
             <div key={`c-${c.field1}-${c.field2}`} className="px-4 py-3">
               <p className="text-xs text-slate-400 mb-0.5">Contradiction</p>

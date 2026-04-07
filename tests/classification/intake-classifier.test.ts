@@ -92,6 +92,26 @@ describe('Intake Classifier', () => {
       });
       expect(result.indicator).toBe('likely_high_financial');
     });
+
+    // ── New: financial_info_retrieval trigger does NOT trigger high-risk financial classification ──
+    it('does not classify financial_info_retrieval alone as high-risk financial', () => {
+      const result = classifyEuAiActIntake({
+        highRiskTriggers: ['financial_info_retrieval'],
+        businessArea: 'customer_experience',
+      });
+      // financial_info_retrieval is NOT in FINANCIAL_TRIGGERS, so it should be TBD
+      // unless a financial business area is present
+      expect(result.indicator).toBe('to_be_determined');
+    });
+
+    it('classifies financial_info_retrieval in a financial business area as high-risk', () => {
+      const result = classifyEuAiActIntake({
+        highRiskTriggers: ['financial_info_retrieval'],
+        businessArea: 'investments',
+      });
+      // The business area alone triggers financial classification
+      expect(result.indicator).toBe('likely_high_financial');
+    });
   });
 
   describe('detectRiskSignals', () => {
@@ -150,6 +170,24 @@ describe('Intake Classifier', () => {
       const signals = detectRiskSignals({ highRiskTriggers: ['none_of_above'] });
       expect(signals.find((s) => s.id === 'high_risk_triggers')).toBeUndefined();
     });
+
+    // ── New: financial_info_retrieval signal tests ──
+
+    it('produces a blue financial_info_retrieval signal instead of amber high-risk', () => {
+      const signals = detectRiskSignals({ highRiskTriggers: ['financial_info_retrieval'] });
+      expect(signals.find((s) => s.id === 'financial_info_retrieval')).toBeDefined();
+      expect(signals.find((s) => s.id === 'financial_info_retrieval')?.severity).toBe('blue');
+      // Should NOT produce the amber high_risk_triggers signal
+      expect(signals.find((s) => s.id === 'high_risk_triggers')).toBeUndefined();
+    });
+
+    it('produces both signals when financial_info_retrieval combined with a real high-risk trigger', () => {
+      const signals = detectRiskSignals({
+        highRiskTriggers: ['financial_info_retrieval', 'insurance_pricing'],
+      });
+      expect(signals.find((s) => s.id === 'financial_info_retrieval')).toBeDefined();
+      expect(signals.find((s) => s.id === 'high_risk_triggers')).toBeDefined();
+    });
   });
 
   describe('classifyIntake (combined)', () => {
@@ -171,6 +209,25 @@ describe('Intake Classifier', () => {
       });
       expect(result.euAiAct.indicator).toBe('to_be_determined');
       expect(result.riskSignals).toHaveLength(0);
+    });
+
+    // ── New: the chatbot scenario from user feedback ──
+    it('handles FAQ chatbot scenario correctly (financial_info_retrieval + customer_experience)', () => {
+      const result = classifyIntake({
+        businessProblem:
+          'Answer participant questions about retirement plan rules and contribution limits',
+        businessArea: 'customer_experience',
+        highRiskTriggers: ['financial_info_retrieval'],
+        buildOrAcquire: 'buying_new_vendor',
+        deploymentRegions: ['us_only'],
+      });
+      // Should NOT be classified as high-risk financial (it's info retrieval, not advice)
+      expect(result.euAiAct.indicator).toBe('to_be_determined');
+      // Should get the lighter blue signal, not the amber high-risk one
+      const infoSignal = result.riskSignals.find((s) => s.id === 'financial_info_retrieval');
+      expect(infoSignal).toBeDefined();
+      expect(infoSignal?.severity).toBe('blue');
+      expect(result.riskSignals.find((s) => s.id === 'high_risk_triggers')).toBeUndefined();
     });
   });
 });

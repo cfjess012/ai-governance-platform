@@ -10,31 +10,32 @@ import {
 
 describe('Intake Branching Rules', () => {
   describe('getVisibleIntakeQuestions', () => {
-    it('shows 29 always-visible questions with no state', () => {
+    // Updated: 30 always-visible (added intake-q29 reviewUrgency)
+    it('shows 30 always-visible questions with no state', () => {
       const visible = getVisibleIntakeQuestions({});
-      // 29 always-visible (all except q9a, q9b, q10a, q11a)
-      expect(visible.size).toBe(29);
+      // 30 always-visible (all except q9a, q9b, q10a, q11a)
+      expect(visible.size).toBe(30);
     });
 
     it('includes all Section A core questions', () => {
       const visible = getVisibleIntakeQuestions({});
-      expect(visible.has('intake-q1')).toBe(true);  // useCaseName
-      expect(visible.has('intake-q2')).toBe(true);  // useCaseOwner
-      expect(visible.has('intake-q3')).toBe(true);  // executiveSponsor
-      expect(visible.has('intake-q4')).toBe(true);  // businessArea
-      expect(visible.has('intake-q5')).toBe(true);  // businessProblem
-      expect(visible.has('intake-q6')).toBe(true);  // howAiHelps
-      expect(visible.has('intake-q7')).toBe(true);  // aiType
-      expect(visible.has('intake-q8')).toBe(true);  // buildOrAcquire
-      expect(visible.has('intake-q9')).toBe(true);  // thirdPartyInvolved
-      expect(visible.has('intake-q10')).toBe(true);  // usesFoundationModel
-      expect(visible.has('intake-q11')).toBe(true);  // deploymentRegions
-      expect(visible.has('intake-q12')).toBe(true);  // lifecycleStage
-      expect(visible.has('intake-q13')).toBe(true);  // previouslyReviewed
-      expect(visible.has('intake-q14')).toBe(true);  // highRiskTriggers
+      expect(visible.has('intake-q1')).toBe(true); // useCaseName
+      expect(visible.has('intake-q2')).toBe(true); // useCaseOwner
+      expect(visible.has('intake-q3')).toBe(true); // executiveSponsor
+      expect(visible.has('intake-q4')).toBe(true); // businessArea
+      expect(visible.has('intake-q5')).toBe(true); // businessProblem
+      expect(visible.has('intake-q6')).toBe(true); // howAiHelps
+      expect(visible.has('intake-q7')).toBe(true); // aiType
+      expect(visible.has('intake-q8')).toBe(true); // buildOrAcquire
+      expect(visible.has('intake-q9')).toBe(true); // thirdPartyInvolved
+      expect(visible.has('intake-q10')).toBe(true); // usesFoundationModel
+      expect(visible.has('intake-q11')).toBe(true); // deploymentRegions
+      expect(visible.has('intake-q12')).toBe(true); // lifecycleStage
+      expect(visible.has('intake-q13')).toBe(true); // previouslyReviewed
+      expect(visible.has('intake-q14')).toBe(true); // highRiskTriggers
       expect(visible.has('intake-q15a')).toBe(true); // whoUsesSystem
       expect(visible.has('intake-q15b')).toBe(true); // whoAffected
-      expect(visible.has('intake-q16')).toBe(true);  // worstOutcome
+      expect(visible.has('intake-q16')).toBe(true); // worstOutcome
     });
 
     it('includes all Section B questions', () => {
@@ -46,7 +47,7 @@ describe('Intake Branching Rules', () => {
       expect(visible.has('intake-q21')).toBe(true); // additionalNotes
     });
 
-    it('includes all Section C questions', () => {
+    it('includes all Section C questions including reviewUrgency', () => {
       const visible = getVisibleIntakeQuestions({});
       expect(visible.has('intake-q22')).toBe(true); // strategicPriority
       expect(visible.has('intake-q23')).toBe(true); // targetPocQuarter
@@ -55,6 +56,7 @@ describe('Intake Branching Rules', () => {
       expect(visible.has('intake-q26')).toBe(true); // valueCreationLevers
       expect(visible.has('intake-q27')).toBe(true); // reflectedInBudget
       expect(visible.has('intake-q28')).toBe(true); // valueEstimate
+      expect(visible.has('intake-q29')).toBe(true); // reviewUrgency
     });
 
     // ── Third-party vendor sub-fields (Q9a, Q9b) ──
@@ -67,8 +69,8 @@ describe('Intake Branching Rules', () => {
 
     it('shows vendor sub-fields when thirdPartyInvolved = yes', () => {
       const visible = getVisibleIntakeQuestions({ thirdPartyInvolved: 'yes' });
-      expect(visible.has('intake-q9a')).toBe(true);  // vendorName
-      expect(visible.has('intake-q9b')).toBe(true);  // auditability
+      expect(visible.has('intake-q9a')).toBe(true); // vendorName
+      expect(visible.has('intake-q9b')).toBe(true); // auditability
     });
 
     it('hides vendor sub-fields when thirdPartyInvolved = no', () => {
@@ -118,30 +120,31 @@ describe('Intake Branching Rules', () => {
 
     // ── Combination tests ──
 
-    it('shows max questions (33) with all conditionals active', () => {
+    // Updated: 34 with all conditionals (was 33, now +1 for reviewUrgency)
+    it('shows max questions (34) with all conditionals active', () => {
       const visible = getVisibleIntakeQuestions({
         thirdPartyInvolved: 'yes',
         usesFoundationModel: 'yes',
         deploymentRegions: ['us_only', 'other'],
       });
-      // 29 always + 2 vendor + 1 model + 1 region = 33
-      expect(visible.size).toBe(33);
+      // 30 always + 2 vendor + 1 model + 1 region = 34
+      expect(visible.size).toBe(34);
     });
 
-    it('shows minimum questions (29) with no conditionals triggered', () => {
+    it('shows minimum questions (30) with no conditionals triggered', () => {
       const visible = getVisibleIntakeQuestions({
         thirdPartyInvolved: 'no',
         usesFoundationModel: 'no',
         deploymentRegions: ['us_only'],
       });
-      expect(visible.size).toBe(29);
+      expect(visible.size).toBe(30);
     });
   });
 
   describe('getVisibleQuestions (ordered array)', () => {
     it('returns ordered array of visible question IDs', () => {
       const ids = getVisibleQuestions({});
-      expect(ids.length).toBe(29);
+      expect(ids.length).toBe(30);
       expect(ids[0]).toBe('intake-q1');
     });
   });
@@ -169,12 +172,7 @@ describe('Intake Branching Rules', () => {
 
     it('returns all 4 stages in order', () => {
       const stages = getVisibleIntakeStages({});
-      expect(stages).toEqual([
-        'section-a',
-        'section-b',
-        'section-c',
-        'review',
-      ]);
+      expect(stages).toEqual(['section-a', 'section-b', 'section-c', 'review']);
     });
   });
 

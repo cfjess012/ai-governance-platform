@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import { use } from 'react';
+import { CommentThread } from '@/components/case/CommentThread';
 import { Button } from '@/components/ui/Button';
 import { assessmentQuestions, intakeQuestions } from '@/config/questions';
 import { useInventoryStore } from '@/lib/store/inventory-store';
+import { isAwaitingTriage } from '@/lib/triage/triage-actions';
+import type { GovernancePath } from '@/types/inventory';
 
 const riskTierColors: Record<string, string> = {
   low: 'bg-green-100 text-green-800',
@@ -12,6 +15,12 @@ const riskTierColors: Record<string, string> = {
   high: 'bg-orange-100 text-orange-800',
   critical: 'bg-red-100 text-red-800',
   pending: 'bg-slate-100 text-slate-600',
+};
+
+const pathLabels: Record<GovernancePath, string> = {
+  lightweight: 'Lightweight Review',
+  standard: 'Standard Assessment',
+  full: 'Full Assessment + Committee Review',
 };
 
 function DimensionBar({
@@ -114,7 +123,12 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
               ? 'Risk: Pending'
               : `${useCase.classification.riskTier.charAt(0).toUpperCase()}${useCase.classification.riskTier.slice(1)} Risk`}
           </span>
-          {!useCase.assessment && useCase.status === 'submitted' && (
+          {isAwaitingTriage(useCase) && (
+            <Link href={`/triage/${useCase.id}`}>
+              <Button size="sm">Triage This Case</Button>
+            </Link>
+          )}
+          {useCase.status === 'assessment_required' && !useCase.assessment && (
             <Link href={`/assessment?useCaseId=${useCase.id}`}>
               <Button size="sm">Start Risk Assessment</Button>
             </Link>
@@ -122,9 +136,61 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
+      {/* Triage decision banner (shown after triage is complete) */}
+      {useCase.triage && (
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50/30 p-5">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900 mb-0.5">Triage Decision</h2>
+              <p className="text-xs text-slate-500">
+                Triaged by {useCase.triage.triagedBy} on {new Date(useCase.triage.triagedAt).toLocaleDateString()}
+              </p>
+            </div>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+              {pathLabels[useCase.triage.governancePath]}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+            <div>
+              <p className="text-xs text-slate-400 mb-0.5">Confirmed risk tier</p>
+              <p className="text-sm font-medium text-slate-700">
+                {useCase.triage.confirmedRiskTier.charAt(0).toUpperCase() + useCase.triage.confirmedRiskTier.slice(1)}
+                {useCase.triage.riskTierOverridden && (
+                  <span className="ml-2 text-xs text-amber-700">(overridden)</span>
+                )}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-0.5">Assigned reviewer</p>
+              <p className="text-sm font-medium text-slate-700">{useCase.triage.assignedReviewer}</p>
+            </div>
+          </div>
+          {useCase.triage.riskTierOverridden && useCase.triage.overrideReason && (
+            <div className="mb-3 pt-3 border-t border-blue-200">
+              <p className="text-xs text-slate-400 mb-0.5">Override reason</p>
+              <p className="text-sm text-slate-700">{useCase.triage.overrideReason}</p>
+            </div>
+          )}
+          {useCase.triage.triageNotes && (
+            <div className="pt-3 border-t border-blue-200">
+              <p className="text-xs text-slate-400 mb-0.5">Triage notes</p>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap">{useCase.triage.triageNotes}</p>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Comment thread */}
+          <CommentThread
+            caseId={useCase.id}
+            comments={useCase.comments ?? []}
+            currentUserRole="governance_team"
+            currentUserName="governance-team@example.com"
+          />
+
           {/* Intake answers */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">

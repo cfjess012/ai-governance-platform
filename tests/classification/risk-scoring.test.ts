@@ -80,10 +80,7 @@ describe('Risk Scoring', () => {
   });
 
   it('score is always between 0 and 100', () => {
-    const results = [
-      calculateRiskScore(lowRiskInput),
-      calculateRiskScore(highRiskInput),
-    ];
+    const results = [calculateRiskScore(lowRiskInput), calculateRiskScore(highRiskInput)];
     for (const r of results) {
       expect(r.score).toBeGreaterThanOrEqual(0);
       expect(r.score).toBeLessThanOrEqual(100);

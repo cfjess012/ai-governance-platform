@@ -49,6 +49,7 @@ export const intakeSchema = z.object({
       z.enum([
         'insurance_pricing',
         'investment_advice',
+        'financial_info_retrieval',
         'credit_lending',
         'hiring_workforce',
         'fraud_detection',
@@ -138,6 +139,7 @@ export const intakeSchema = z.object({
     .optional(),
   reflectedInBudget: z.boolean().optional(),
   valueEstimate: z.string().max(100).optional(),
+  reviewUrgency: z.enum(['standard', 'time_sensitive', 'blocking_deployment']).optional(),
 });
 
 // Draft schema — same fields but all optional for save-as-you-go

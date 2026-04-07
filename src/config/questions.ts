@@ -1,4 +1,11 @@
-export type QuestionType = 'text' | 'textarea' | 'select' | 'multiselect' | 'boolean' | 'number';
+export type QuestionType =
+  | 'text'
+  | 'textarea'
+  | 'select'
+  | 'multiselect'
+  | 'boolean'
+  | 'number'
+  | 'currency';
 
 export interface QuestionOption {
   value: string;
@@ -331,16 +338,42 @@ export const intakeQuestions: QuestionDefinition[] = [
     form: 'intake',
     exclusiveOption: 'none_of_above',
     options: [
-      { value: 'insurance_pricing', label: 'Insurance pricing/underwriting/claims' },
+      {
+        value: 'insurance_pricing',
+        label: 'Insurance pricing/underwriting/claims',
+        helpText:
+          'Select if the system influences policy pricing, risk selection, claim adjudication, or coverage decisions — even indirectly.',
+      },
       {
         value: 'investment_advice',
-        label: 'Investment advice or portfolio decisions',
+        label: 'Personalized financial or investment recommendations',
         helpText:
-          'Select this if the system could provide personalized recommendations about financial products, contributions, or allocations.',
+          'Select if the system tailors recommendations to an individual based on their personal data (e.g., "you should increase your contribution to 10%"). Do NOT select for general information retrieval (e.g., "the annual contribution limit is $23,500").',
       },
-      { value: 'credit_lending', label: 'Credit or lending decisions' },
-      { value: 'hiring_workforce', label: 'Hiring/performance evaluation/workforce monitoring' },
-      { value: 'fraud_detection', label: 'Fraud detection or investigation' },
+      {
+        value: 'financial_info_retrieval',
+        label: 'Financial information retrieval (non-personalized)',
+        helpText:
+          'Select if the system answers general financial questions (plan rules, contribution limits, fund descriptions) without tailoring advice to the individual. This still requires review but follows a lighter path than personalized advice.',
+      },
+      {
+        value: 'credit_lending',
+        label: 'Credit or lending decisions',
+        helpText:
+          'Select if the system influences credit approval, denial, terms, or pricing for any financial product.',
+      },
+      {
+        value: 'hiring_workforce',
+        label: 'Hiring/performance evaluation/workforce monitoring',
+        helpText:
+          'Select if the system screens resumes, ranks candidates, evaluates performance, monitors employees, or influences compensation decisions.',
+      },
+      {
+        value: 'fraud_detection',
+        label: 'Fraud detection or investigation',
+        helpText:
+          'Select if the system flags, investigates, or takes action on suspected fraud — including automated claim denial based on fraud signals.',
+      },
       { value: 'fine_tuning_llm', label: 'Fine-tuning a foundation model' },
       { value: 'biometric_id', label: 'Biometric identification' },
       { value: 'emotion_detection', label: 'Emotion or sentiment detection' },
@@ -388,26 +421,40 @@ export const intakeQuestions: QuestionDefinition[] = [
   {
     id: 'intake-q16',
     field: 'worstOutcome',
-    label: 'Worst realistic outcome if the system gets it wrong',
-    helpText: 'What is the worst realistic outcome if the AI system produces incorrect results?',
+    label: 'If this system produces incorrect results, which scenario best applies?',
+    helpText:
+      'Select the scenario that most closely matches the realistic worst case. Think about what happens to the people affected, not just the business.',
     whyWeAsk:
-      'Worst-case impact is a key factor in risk classification. Higher potential harm requires stronger controls and more rigorous testing.',
+      'Impact severity is a key factor in risk classification. We use scenario-based framing rather than abstract severity levels to ensure consistent assessment across teams.',
     type: 'select',
     required: true,
     section: 'Tell Us About Your AI Use Case',
     stage: 'section-a',
     form: 'intake',
     options: [
-      { value: 'minor', label: 'Minor inconvenience' },
-      { value: 'moderate', label: 'Moderate impact' },
+      {
+        value: 'minor',
+        label: 'Someone is mildly inconvenienced',
+        helpText:
+          'E.g., a report has a formatting error, a search returns imperfect results, an internal summary needs manual correction.',
+      },
+      {
+        value: 'moderate',
+        label: 'Someone receives wrong information and may act on it',
+        helpText:
+          'E.g., an employee gets incorrect policy guidance, a participant sees the wrong plan details, a customer gets a delayed response.',
+      },
       {
         value: 'significant',
-        label: 'Significant harm (wrong claim decision, unfair pricing, denied coverage)',
+        label: 'Someone could suffer financial harm or lose access to a service',
+        helpText:
+          'E.g., a participant makes a financial decision based on wrong advice, a claim is incorrectly denied, coverage is priced unfairly, someone is wrongly flagged for fraud.',
       },
       {
         value: 'serious',
-        label:
-          "Serious harm that's hard to undo (discriminatory outcome at scale, major financial loss, regulatory violation)",
+        label: 'Someone could suffer harm that is hard to reverse or detect',
+        helpText:
+          'E.g., discriminatory outcomes applied at scale before detection, widespread incorrect benefits calculations, regulatory violations affecting many people, systematic denial of coverage.',
       },
     ],
   },
@@ -703,11 +750,45 @@ export const intakeQuestions: QuestionDefinition[] = [
     helpText: 'Estimated financial value of the use case in dollars.',
     whyWeAsk:
       'Financial estimates help leadership prioritize the AI portfolio and are required for use cases seeking enterprise-level funding.',
-    type: 'number',
+    type: 'currency',
     required: false,
     section: 'Portfolio Alignment',
     stage: 'section-c',
     form: 'intake',
+  },
+  {
+    id: 'intake-q29',
+    field: 'reviewUrgency',
+    label: 'Review urgency',
+    helpText:
+      'Let the governance team know if there is a business deadline driving this review. Time-sensitive requests are prioritized but still go through the same governance process.',
+    whyWeAsk:
+      'Urgency flags help the governance team allocate review capacity and ensure critical deadlines are met without bypassing governance controls.',
+    type: 'select',
+    required: false,
+    section: 'Portfolio Alignment',
+    stage: 'section-c',
+    form: 'intake',
+    options: [
+      {
+        value: 'standard',
+        label: 'Standard review (3\u20135 business days)',
+        helpText:
+          'No specific deadline pressure. The governance team will review in normal priority order.',
+      },
+      {
+        value: 'time_sensitive',
+        label: 'Time-sensitive (business deadline within 4 weeks)',
+        helpText:
+          'There is a business deadline (e.g., open enrollment, regulatory deadline, contract date). Provide details in the notes field.',
+      },
+      {
+        value: 'blocking_deployment',
+        label: 'Blocking deployment (ready to go live)',
+        helpText:
+          'The system is technically ready for production and governance review is the last gate. The team will prioritize accordingly.',
+      },
+    ],
   },
 ];
 

@@ -68,6 +68,43 @@ export function QuestionRenderer({ question, value, error, onChange }: QuestionR
         </div>
       );
 
+    case 'currency': {
+      // Strip everything except digits from whatever is stored
+      const rawDigits =
+        typeof value === 'string'
+          ? value.replace(/[^0-9]/g, '')
+          : typeof value === 'number'
+            ? String(value)
+            : '';
+      // Format as USD with no decimal places — empty when no input
+      const displayValue = rawDigits
+        ? new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            maximumFractionDigits: 0,
+          }).format(Number(rawDigits))
+        : '';
+      return (
+        <div className="space-y-1">
+          {labelEl}
+          <input
+            id={question.field}
+            type="text"
+            inputMode="numeric"
+            value={displayValue}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/[^0-9]/g, '');
+              handleChange(digits);
+            }}
+            className={inputClasses}
+            placeholder="$0"
+          />
+          {helpEl}
+          {errorEl}
+        </div>
+      );
+    }
+
     case 'textarea':
       return (
         <div className="space-y-1">

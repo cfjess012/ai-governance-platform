@@ -89,6 +89,26 @@ const navItems = [
     ),
   },
   {
+    label: 'Triage',
+    href: '/triage',
+    icon: (
+      <svg
+        aria-hidden="true"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+    ),
+  },
+  {
     label: 'Assessment',
     href: '/assessment',
     icon: (
@@ -107,16 +127,53 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    label: 'Roadmap',
+    href: '/roadmap',
+    icon: (
+      <svg
+        aria-hidden="true"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+    ),
+  },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-[220px] shrink-0 bg-[#0f172a] flex flex-col h-full">
+    <aside className="app-sidebar">
       {/* Logo */}
-      <div className="px-5 h-14 flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
+      <div
+        style={{
+          padding: '0 1.25rem',
+          height: '3.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.625rem',
+        }}
+      >
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 6,
+            backgroundColor: '#3b82f6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <svg
             aria-hidden="true"
             width="14"
@@ -133,15 +190,14 @@ export function AppSidebar() {
             <path d="M2 12l10 5 10-5" />
           </svg>
         </div>
-        <span className="text-sm font-semibold text-white tracking-tight">AI Governance</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#fff', letterSpacing: '-0.01em' }}>
+          AI Governance
+        </span>
       </div>
 
       {/* New Intake button */}
-      <div className="px-3 mb-4">
-        <Link
-          href="/intake"
-          className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
-        >
+      <div style={{ padding: '0 0.75rem', marginBottom: '1rem' }}>
+        <Link href="/intake" className="sidebar-btn">
           <svg
             aria-hidden="true"
             width="14"
@@ -161,34 +217,53 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 space-y-0.5">
-        {navItems.map((item) => {
-          const isActive =
-            pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-colors ${
-                isActive
-                  ? 'bg-blue-500/15 text-blue-400 font-medium'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav style={{ flex: 1, padding: '0 0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {navItems.map((item) => {
+            const isActive =
+              pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+            return (
+              <Link key={item.href} href={item.href} className="nav-link" data-active={isActive}>
+                {item.icon}
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Bottom */}
-      <div className="px-3 py-4 border-t border-white/10">
-        <div className="flex items-center gap-2.5 px-3">
-          <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[11px] font-medium text-slate-300">
-            U
+      <div style={{ padding: '1rem 0.75rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0 0.75rem' }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              backgroundColor: '#334155',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 11,
+              fontWeight: 500,
+              color: '#cbd5e1',
+            }}
+          >
+            N
           </div>
-          <span className="text-xs text-slate-400 truncate">user@company.com</span>
+          <span
+            style={{
+              fontSize: 12,
+              color: '#94a3b8',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            user@company.com
+          </span>
         </div>
       </div>
     </aside>

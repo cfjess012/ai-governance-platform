@@ -59,6 +59,7 @@ export function getVisibleIntakeQuestions(state: IntakeFormState): Set<string> {
     'intake-q26', // valueCreationLevers
     'intake-q27', // reflectedInBudget
     'intake-q28', // valueEstimate
+    'intake-q29', // reviewUrgency
   ];
 
   for (const id of alwaysVisible) {
@@ -134,6 +135,7 @@ export function getVisibleIntakeStages(state: IntakeFormState): string[] {
       'intake-q26',
       'intake-q27',
       'intake-q28',
+      'intake-q29',
     ],
     review: [],
   };

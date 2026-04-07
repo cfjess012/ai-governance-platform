@@ -262,6 +262,7 @@ export function WizardShell() {
           classification: result.data.classification,
           status: 'submitted',
           timeline: [{ status: 'submitted', timestamp: now, changedBy: 'mock-user@example.com' }],
+          comments: [],
           createdAt: now,
           updatedAt: now,
           submittedBy: 'mock-user@example.com',
@@ -279,29 +280,77 @@ export function WizardShell() {
 
   // Success
   if (isSubmitted && submitResult) {
+    const urgency = formData.reviewUrgency as string | undefined;
+    const isTimeSensitive = urgency === 'time_sensitive' || urgency === 'blocking_deployment';
+
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-center max-w-sm">
-          <div className="w-12 h-12 mx-auto mb-5 rounded-full bg-green-50 flex items-center justify-center">
-            <svg
-              aria-hidden="true"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#16a34a"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+        <div className="max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-12 h-12 mx-auto mb-5 rounded-full bg-green-50 flex items-center justify-center">
+              <svg
+                aria-hidden="true"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#16a34a"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <h1 className="text-xl font-semibold text-slate-900 mb-1">Intake Submitted</h1>
+            <p className="text-xs text-slate-400 font-mono">{submitResult.id}</p>
           </div>
-          <h1 className="text-xl font-semibold text-slate-900 mb-1">Intake Submitted</h1>
-          <p className="text-sm text-slate-500 mb-1">
-            Your use case has been submitted for review.
-          </p>
-          <p className="text-xs text-slate-400 font-mono mb-8">{submitResult.id}</p>
+
+          {/* What happens next */}
+          <div className="rounded-lg border border-slate-200 bg-white p-5 mb-6">
+            <h2 className="text-sm font-semibold text-slate-900 mb-3">What happens next</h2>
+            <ol className="space-y-3">
+              <li className="flex items-start gap-3">
+                <span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
+                  1
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Governance team review</p>
+                  <p className="text-xs text-slate-500">
+                    {isTimeSensitive
+                      ? 'Your submission is flagged as time-sensitive and will be prioritized. Expect initial review within 2\u20133 business days.'
+                      : 'The ERAI governance team will review your submission within 3\u20135 business days.'}
+                  </p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
+                  2
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Classification & triage</p>
+                  <p className="text-xs text-slate-500">
+                    Your use case will be classified against the EU AI Act and internal risk
+                    frameworks. You&apos;ll receive an email with the result and any required next
+                    steps.
+                  </p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="shrink-0 w-5 h-5 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs font-bold">
+                  3
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Assessment (if required)</p>
+                  <p className="text-xs text-slate-500">
+                    High-risk use cases will require a pre-production risk assessment. The
+                    governance team will schedule this with you directly.
+                  </p>
+                </div>
+              </li>
+            </ol>
+          </div>
+
           <div className="flex gap-3 justify-center">
             <button
               type="button"
@@ -321,7 +370,7 @@ export function WizardShell() {
               }}
               className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600"
             >
-              View Inventory
+              View in Inventory
             </button>
           </div>
         </div>

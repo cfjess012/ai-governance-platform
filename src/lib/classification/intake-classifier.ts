@@ -46,6 +46,9 @@ const PROHIBITED_TRIGGERS = new Set(['fine_tuning_llm', 'biometric_id', 'emotion
 /** High-risk trigger values that map to financial services Annex III */
 const FINANCIAL_TRIGGERS = new Set(['insurance_pricing', 'investment_advice', 'credit_lending']);
 
+/** Financial triggers that require review but are lower risk (info retrieval, not decision-making) */
+const FINANCIAL_INFO_TRIGGERS = new Set(['financial_info_retrieval']);
+
 /** Business area values that indicate financial services */
 const FINANCIAL_AREAS = new Set(['actuarial', 'claims', 'investments', 'underwriting', 'finance']);
 
@@ -131,13 +134,25 @@ export function detectRiskSignals(input: IntakeClassificationInput): RiskSignal[
   const signals: RiskSignal[] = [];
   const triggers = input.highRiskTriggers ?? [];
 
-  // High-risk triggers selected
-  const hasHighRisk = triggers.length > 0 && !triggers.every((t) => t === 'none_of_above');
-  if (hasHighRisk) {
+  // High-risk triggers selected (excluding info-only triggers)
+  const substantiveTriggers = triggers.filter(
+    (t) => t !== 'none_of_above' && !FINANCIAL_INFO_TRIGGERS.has(t),
+  );
+  if (substantiveTriggers.length > 0) {
     signals.push({
       id: 'high_risk_triggers',
       label: 'High-risk decision triggers selected \u2014 comprehensive assessment required',
       severity: 'amber',
+    });
+  }
+
+  // Financial info retrieval (lower risk, still needs review)
+  if (triggers.some((t) => FINANCIAL_INFO_TRIGGERS.has(t))) {
+    signals.push({
+      id: 'financial_info_retrieval',
+      label:
+        'Financial information retrieval \u2014 lighter review path, accuracy controls required',
+      severity: 'blue',
     });
   }
 

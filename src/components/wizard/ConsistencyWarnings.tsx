@@ -5,6 +5,21 @@ interface ConsistencyWarning {
   message: string;
 }
 
+/** Business areas and triggers that imply external financial impact */
+const FINANCIAL_IMPACT_AREAS = new Set([
+  'actuarial',
+  'claims',
+  'investments',
+  'underwriting',
+  'finance',
+]);
+const FINANCIAL_IMPACT_TRIGGERS = new Set([
+  'insurance_pricing',
+  'investment_advice',
+  'credit_lending',
+  'financial_info_retrieval',
+]);
+
 export function getClientConsistencyWarnings(
   formData: Record<string, unknown>,
 ): ConsistencyWarning[] {
@@ -44,6 +59,50 @@ export function getClientConsistencyWarnings(
       warnings.push({
         id: 'ideation-soon-production',
         message: 'Ideation stage with production target within one quarter. Timeline may be tight.',
+      });
+    }
+  }
+
+  // Cross-validation: worst outcome vs business area, triggers, and affected population
+  const worstOutcome = formData.worstOutcome as string | undefined;
+  const businessArea = formData.businessArea as string | undefined;
+  const triggers = Array.isArray(formData.highRiskTriggers)
+    ? (formData.highRiskTriggers as string[])
+    : [];
+  const whoAffected = formData.whoAffected as string | undefined;
+  const peopleCount = formData.peopleAffectedCount as string | undefined;
+
+  if (worstOutcome && worstOutcome === 'minor') {
+    const isFinancialArea = FINANCIAL_IMPACT_AREAS.has(businessArea ?? '');
+    const hasFinancialTrigger = triggers.some((t) => FINANCIAL_IMPACT_TRIGGERS.has(t));
+    const affectsExternalPeople =
+      whoAffected === 'external' || whoAffected === 'both' || whoAffected === 'general_public';
+    const largeScale = peopleCount === '10000_100000' || peopleCount === 'over_100000';
+
+    if ((isFinancialArea || hasFinancialTrigger) && affectsExternalPeople) {
+      warnings.push({
+        id: 'outcome-mismatch-financial',
+        message:
+          'Impact may be understated: this system operates in a financial services area and affects external people, but worst outcome is set to "mildly inconvenienced." Consider whether incorrect outputs could lead someone to make a financial decision they otherwise wouldn\'t.',
+      });
+    } else if (affectsExternalPeople && largeScale) {
+      warnings.push({
+        id: 'outcome-mismatch-scale',
+        message:
+          'Impact may be understated: this system affects a large external population (10,000+) but worst outcome is set to "mildly inconvenienced." Consider the cumulative impact at scale.',
+      });
+    }
+  }
+
+  if (worstOutcome === 'moderate') {
+    const hasHighTrigger = triggers.some((t) =>
+      ['insurance_pricing', 'investment_advice', 'credit_lending', 'hiring_workforce'].includes(t),
+    );
+    if (hasHighTrigger) {
+      warnings.push({
+        id: 'outcome-mismatch-trigger',
+        message:
+          'You selected a high-risk decision trigger but set impact to "wrong information." Systems that influence financial or employment decisions typically have at least "financial harm" level impact. Please review.',
       });
     }
   }
