@@ -8,18 +8,19 @@ export const intakeSchema = z.object({
   businessArea: z.string().min(1, 'Business area is required'),
   businessProblem: z.string().min(10, 'Description must be at least 10 characters').max(5000),
   howAiHelps: z.string().min(10, 'Description must be at least 10 characters').max(5000),
-  aiType: z.enum(
-    [
-      'generative_ai',
-      'predictive_classification',
-      'rpa_with_ai',
-      'ai_agent',
-      'computer_vision',
-      'rag',
-      'other_not_sure',
-    ],
-    { message: 'AI type is required' },
-  ),
+  aiType: z
+    .array(
+      z.enum([
+        'generative_ai',
+        'predictive_classification',
+        'rpa_with_ai',
+        'ai_agent',
+        'computer_vision',
+        'rag',
+        'other_not_sure',
+      ]),
+    )
+    .min(1, 'Select at least one AI type'),
   buildOrAcquire: z.enum(
     [
       'custom_development',
@@ -32,15 +33,24 @@ export const intakeSchema = z.object({
   ),
   thirdPartyInvolved: z.enum(['yes', 'no'], { message: 'This field is required' }),
   vendorName: z.string().max(200).optional(),
-  auditability: z.enum(['can_inspect', 'black_box', 'dont_know']).optional(),
-  usesFoundationModel: z.enum(['yes', 'no', 'dont_know'], { message: 'This field is required' }),
+  auditability: z.enum(['can_inspect', 'inputs_outputs_only', 'black_box', 'dont_know']).optional(),
+  usesFoundationModel: z.enum(['yes', 'yes_vendor_managed', 'no', 'dont_know'], {
+    message: 'This field is required',
+  }),
   whichModels: z.array(z.string()).optional(),
   deploymentRegions: z
     .array(z.enum(['us_only', 'eu_eea', 'uk', 'canada', 'other']))
     .min(1, 'At least one region is required'),
   deploymentRegionsOther: z.string().max(500).optional(),
   lifecycleStage: z.enum(
-    ['idea_planning', 'development_poc', 'testing_pilot', 'in_production', 'being_retired'],
+    [
+      'idea_planning',
+      'development_poc',
+      'testing_pilot',
+      'in_use_seeking_approval',
+      'in_production',
+      'being_retired',
+    ],
     { message: 'Lifecycle stage is required' },
   ),
   previouslyReviewed: z.enum(['yes', 'no', 'dont_know'], { message: 'This field is required' }),
@@ -56,6 +66,10 @@ export const intakeSchema = z.object({
         'fine_tuning_llm',
         'biometric_id',
         'emotion_detection',
+        'code_to_production',
+        'proprietary_ip',
+        'external_content_generation',
+        'security_vulnerability_risk',
         'none_of_above',
       ]),
     )
@@ -97,11 +111,12 @@ export const intakeSchema = z.object({
   ),
   additionalNotes: z.string().max(5000).optional(),
 
-  // Section C: Portfolio Alignment
-  strategicPriority: z.enum(
-    ['enterprise_strategy', 'must_do', 'high_value', 'low_value', 'no_alignment'],
-    { message: 'Strategic priority is required' },
-  ),
+  // Section C: Portfolio Alignment (optional — may be hidden by fast-track opt-in)
+  strategicPriority: z
+    .enum(['enterprise_strategy', 'must_do', 'high_value', 'low_value', 'no_alignment'])
+    .optional(),
+  /** Fast-track flag: when true, the user opted to skip Section C */
+  fastTrackOptIn: z.boolean().optional(),
   targetPocQuarter: z.string().max(20).optional(),
   targetProductionQuarter: z.string().max(20).optional(),
   valueDescription: z.string().max(5000).optional(),
@@ -125,15 +140,17 @@ export const intakeSchema = z.object({
         'em_infrastructure',
         'em_labor',
         'em_software',
+        'em_employee_productivity',
+        'em_developer_productivity',
+        'em_talent_retention',
         'vp_monitoring_logging',
         'vp_automated_security',
         'vp_disaster_recovery',
         'vp_business_continuity',
         'vp_fault_tolerance',
         'vp_reduce_exceptions',
-        'placeholder_1',
-        'placeholder_2',
-        'placeholder_3',
+        'vp_regulatory_compliance',
+        'vp_internal_knowledge',
       ]),
     )
     .optional(),

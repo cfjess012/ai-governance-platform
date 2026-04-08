@@ -5,6 +5,7 @@ import { use } from 'react';
 import { CommentThread } from '@/components/case/CommentThread';
 import { Button } from '@/components/ui/Button';
 import { assessmentQuestions, intakeQuestions } from '@/config/questions';
+import { TIER_DISPLAY } from '@/lib/risk/types';
 import { useInventoryStore } from '@/lib/store/inventory-store';
 import { isAwaitingTriage } from '@/lib/triage/triage-actions';
 import type { GovernancePath } from '@/types/inventory';
@@ -116,16 +117,26 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
           </p>
         </div>
         <div className="flex gap-2">
-          <span
-            className={`px-3 py-1 rounded-full text-sm font-medium ${riskTierColors[useCase.classification.riskTier]}`}
-          >
-            {useCase.classification.riskTier === 'pending'
-              ? 'Risk: Pending'
-              : `${useCase.classification.riskTier.charAt(0).toUpperCase()}${useCase.classification.riskTier.slice(1)} Risk`}
-          </span>
+          {useCase.inherentRisk ? (
+            <span
+              className={`px-3 py-1 rounded-full text-sm font-medium border ${TIER_DISPLAY[useCase.inherentRisk.tier].badgeClasses}`}
+              title={useCase.inherentRisk.tierDisplay.description}
+            >
+              {TIER_DISPLAY[useCase.inherentRisk.tier].label} Inherent Risk
+            </span>
+          ) : (
+            <span className="px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600">
+              Risk: Pending
+            </span>
+          )}
           {isAwaitingTriage(useCase) && (
             <Link href={`/triage/${useCase.id}`}>
               <Button size="sm">Triage This Case</Button>
+            </Link>
+          )}
+          {useCase.status === 'lightweight_review' && !useCase.lightweightReview && (
+            <Link href={`/review/lightweight/${useCase.id}`}>
+              <Button size="sm">Start Lightweight Review</Button>
             </Link>
           )}
           {useCase.status === 'assessment_required' && !useCase.assessment && (
@@ -143,7 +154,8 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
             <div>
               <h2 className="text-sm font-semibold text-slate-900 mb-0.5">Triage Decision</h2>
               <p className="text-xs text-slate-500">
-                Triaged by {useCase.triage.triagedBy} on {new Date(useCase.triage.triagedAt).toLocaleDateString()}
+                Triaged by {useCase.triage.triagedBy} on{' '}
+                {new Date(useCase.triage.triagedAt).toLocaleDateString()}
               </p>
             </div>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
@@ -152,9 +164,11 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
             <div>
-              <p className="text-xs text-slate-400 mb-0.5">Confirmed risk tier</p>
+              <p className="text-xs text-slate-400 mb-0.5">Confirmed inherent tier</p>
               <p className="text-sm font-medium text-slate-700">
-                {useCase.triage.confirmedRiskTier.charAt(0).toUpperCase() + useCase.triage.confirmedRiskTier.slice(1)}
+                {useCase.triage.confirmedInherentTier
+                  .replace('_', '-')
+                  .replace(/\b\w/g, (c) => c.toUpperCase())}
                 {useCase.triage.riskTierOverridden && (
                   <span className="ml-2 text-xs text-amber-700">(overridden)</span>
                 )}
@@ -162,7 +176,9 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
             </div>
             <div>
               <p className="text-xs text-slate-400 mb-0.5">Assigned reviewer</p>
-              <p className="text-sm font-medium text-slate-700">{useCase.triage.assignedReviewer}</p>
+              <p className="text-sm font-medium text-slate-700">
+                {useCase.triage.assignedReviewer}
+              </p>
             </div>
           </div>
           {useCase.triage.riskTierOverridden && useCase.triage.overrideReason && (
@@ -174,9 +190,134 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
           {useCase.triage.triageNotes && (
             <div className="pt-3 border-t border-blue-200">
               <p className="text-xs text-slate-400 mb-0.5">Triage notes</p>
-              <p className="text-sm text-slate-700 whitespace-pre-wrap">{useCase.triage.triageNotes}</p>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                {useCase.triage.triageNotes}
+              </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Inherent Risk Calculation panel ── */}
+      {useCase.inherentRisk && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-slate-900">Inherent Risk Calculation</h2>
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${TIER_DISPLAY[useCase.inherentRisk.tier].badgeClasses}`}
+            >
+              {TIER_DISPLAY[useCase.inherentRisk.tier].label}
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-500 leading-relaxed mb-4">
+            {useCase.inherentRisk.tierDisplay.description}
+          </p>
+
+          {/* Fired regulatory rules */}
+          {useCase.inherentRisk.firedRules.length > 0 && (
+            <div className="mb-4 pt-3 border-t border-slate-100">
+              <p className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-2">
+                Regulatory rules ({useCase.inherentRisk.firedRules.length})
+              </p>
+              <ul className="space-y-2">
+                {useCase.inherentRisk.firedRules.map((rule) => (
+                  <li key={rule.id} className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-red-400" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-slate-700">{rule.name}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{rule.reason}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 italic">
+                        {rule.citation.framework} — {rule.citation.reference}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Fired patterns */}
+          {useCase.inherentRisk.firedPatterns.length > 0 && (
+            <div className="mb-4 pt-3 border-t border-slate-100">
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-2">
+                Risk patterns ({useCase.inherentRisk.firedPatterns.length})
+              </p>
+              <ul className="space-y-2">
+                {useCase.inherentRisk.firedPatterns.map((pattern) => (
+                  <li key={pattern.id} className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-amber-400" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-slate-700">{pattern.name}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                        {pattern.description}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Dimension scores (compact bars) */}
+          <div className="mb-4 pt-3 border-t border-slate-100">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+              Risk dimensions
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {useCase.inherentRisk.dimensions.map((d) => (
+                <div key={d.id}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-slate-700">{d.label}</span>
+                    <span className="text-xs text-slate-400 tabular-nums">{d.score}/4</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-1.5">
+                    <div
+                      className={`h-1.5 rounded-full transition-all ${
+                        d.score >= 4
+                          ? 'bg-red-400'
+                          : d.score >= 3
+                            ? 'bg-orange-400'
+                            : d.score >= 2
+                              ? 'bg-amber-400'
+                              : d.score >= 1
+                                ? 'bg-lime-400'
+                                : 'bg-emerald-400'
+                      }`}
+                      style={{ width: `${(d.score / 4) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Applicable frameworks */}
+          {useCase.inherentRisk.applicableFrameworks.length > 0 && (
+            <div className="pt-3 border-t border-slate-100">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                Applicable frameworks ({useCase.inherentRisk.applicableFrameworks.length})
+              </p>
+              <ul className="space-y-1.5">
+                {useCase.inherentRisk.applicableFrameworks.map((f) => (
+                  <li key={`${f.framework}-${f.reference}`} className="flex items-start gap-2">
+                    <span className="w-1 h-1 rounded-full mt-1.5 shrink-0 bg-slate-400" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-slate-600">
+                        {f.framework} — {f.reference}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">{f.applicabilityReason}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p className="text-[10px] text-slate-400 italic mt-3 pt-3 border-t border-slate-100">
+            Computed at {new Date(useCase.inherentRisk.computedAt).toLocaleString()} · Preliminary —
+            triage may override
+          </p>
         </div>
       )}
 
@@ -211,6 +352,83 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
               })}
             </div>
           </div>
+
+          {/* Lightweight review record (if completed) */}
+          {useCase.lightweightReview && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-700">Lightweight Review</h2>
+                <span
+                  className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    useCase.lightweightReview.decision === 'approve'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : useCase.lightweightReview.decision === 'changes_requested'
+                        ? 'bg-amber-100 text-amber-700'
+                        : useCase.lightweightReview.decision === 'escalate'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {useCase.lightweightReview.decision === 'approve'
+                    ? 'Approved'
+                    : useCase.lightweightReview.decision === 'changes_requested'
+                      ? 'Changes Requested'
+                      : useCase.lightweightReview.decision === 'escalate'
+                        ? 'Escalated'
+                        : 'Rejected'}
+                </span>
+              </div>
+              <dl className="divide-y divide-slate-100">
+                <div className="px-6 py-3">
+                  <dt className="text-xs font-medium text-slate-500">Reviewed by</dt>
+                  <dd className="mt-0.5 text-sm text-slate-900">
+                    {useCase.lightweightReview.reviewedBy} on{' '}
+                    {new Date(useCase.lightweightReview.reviewedAt).toLocaleDateString()}
+                  </dd>
+                </div>
+                <div className="px-6 py-3">
+                  <dt className="text-xs font-medium text-slate-500">Intake accuracy verified</dt>
+                  <dd className="mt-0.5 text-sm text-slate-900">
+                    {useCase.lightweightReview.intakeAccurate ? 'Yes' : 'No'}
+                  </dd>
+                </div>
+                <div className="px-6 py-3">
+                  <dt className="text-xs font-medium text-slate-500">Basic controls confirmed</dt>
+                  <dd className="mt-0.5 text-sm text-slate-900">
+                    {useCase.lightweightReview.basicControlsConfirmed ? 'Yes' : 'No'}
+                  </dd>
+                </div>
+                <div className="px-6 py-3">
+                  <dt className="text-xs font-medium text-slate-500">Escalation contact</dt>
+                  <dd className="mt-0.5 text-sm text-slate-900">
+                    {useCase.lightweightReview.escalationContact}
+                  </dd>
+                </div>
+                <div className="px-6 py-3">
+                  <dt className="text-xs font-medium text-slate-500">Review notes</dt>
+                  <dd className="mt-0.5 text-sm text-slate-900 whitespace-pre-wrap">
+                    {useCase.lightweightReview.reviewNotes}
+                  </dd>
+                </div>
+                {useCase.lightweightReview.approvalConditions && (
+                  <div className="px-6 py-3">
+                    <dt className="text-xs font-medium text-slate-500">Approval conditions</dt>
+                    <dd className="mt-0.5 text-sm text-slate-900 whitespace-pre-wrap">
+                      {useCase.lightweightReview.approvalConditions}
+                    </dd>
+                  </div>
+                )}
+                {useCase.lightweightReview.rejectionReason && (
+                  <div className="px-6 py-3">
+                    <dt className="text-xs font-medium text-slate-500">Reason</dt>
+                    <dd className="mt-0.5 text-sm text-slate-900 whitespace-pre-wrap">
+                      {useCase.lightweightReview.rejectionReason}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
 
           {/* Assessment answers (if completed) */}
           {useCase.assessment && (
@@ -295,8 +513,8 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
               </div>
               {useCase.euAiActDetail.triggers.length > 0 && (
                 <div className="space-y-2 mb-3">
-                  {useCase.euAiActDetail.triggers.map((t, i) => (
-                    <div key={i} className="text-xs text-slate-600">
+                  {useCase.euAiActDetail.triggers.map((t) => (
+                    <div key={`${t.annexRef}-${t.reason}`} className="text-xs text-slate-600">
                       <span className="font-medium">{t.annexRef}:</span> {t.reason}
                     </div>
                   ))}
@@ -306,8 +524,8 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
                 <div>
                   <p className="text-xs font-medium text-slate-500 mb-1">Obligations:</p>
                   <ul className="space-y-0.5">
-                    {useCase.euAiActDetail.obligations.map((o, i) => (
-                      <li key={i} className="text-xs text-slate-600">
+                    {useCase.euAiActDetail.obligations.map((o) => (
+                      <li key={o} className="text-xs text-slate-600">
                         &bull; {o}
                       </li>
                     ))}
@@ -324,8 +542,8 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-slate-700 mb-3">Timeline</h3>
             <div className="space-y-3">
-              {useCase.timeline.map((change, i) => (
-                <div key={i} className="flex gap-3 text-xs">
+              {useCase.timeline.map((change) => (
+                <div key={`${change.status}-${change.timestamp}`} className="flex gap-3 text-xs">
                   <div className="w-2 h-2 mt-1 rounded-full bg-[#00539B] flex-shrink-0" />
                   <div>
                     <p className="text-slate-700 font-medium capitalize">
@@ -345,8 +563,8 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
               <h3 className="text-sm font-semibold text-slate-700 mb-3">Governance Requirements</h3>
               <ul className="space-y-1.5">
-                {useCase.scoring.governanceRequirements.map((req, i) => (
-                  <li key={i} className="text-xs text-slate-600 flex items-start gap-2">
+                {useCase.scoring.governanceRequirements.map((req) => (
+                  <li key={req} className="text-xs text-slate-600 flex items-start gap-2">
                     <span className="text-[#00539B] mt-0.5 flex-shrink-0">&bull;</span>
                     {req}
                   </li>

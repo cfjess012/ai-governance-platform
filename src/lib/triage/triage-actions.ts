@@ -2,7 +2,7 @@
  * Pure functions for triage decision logic.
  * No side effects — fully testable.
  */
-import type { RiskTier } from '@/lib/classification/seven-dimension-scoring';
+import type { InherentRiskTier } from '@/lib/risk/types';
 import type {
   AIUseCase,
   AIUseCaseStatus,
@@ -12,7 +12,7 @@ import type {
 } from '@/types/inventory';
 
 export interface TriageDecisionInput {
-  confirmedRiskTier: RiskTier;
+  confirmedInherentTier: InherentRiskTier;
   riskTierOverridden: boolean;
   overrideReason?: string;
   governancePath: GovernancePath;
@@ -37,17 +37,19 @@ export function nextStatusAfterTriage(path: GovernancePath): AIUseCaseStatus {
 }
 
 /**
- * Recommend a governance path based on the preliminary risk classification.
+ * Recommend a governance path based on the inherent risk tier.
  * The reviewer can override this in the triage UI.
  */
-export function recommendGovernancePath(riskTier: RiskTier): GovernancePath {
-  switch (riskTier) {
+export function recommendGovernancePath(tier: InherentRiskTier): GovernancePath {
+  switch (tier) {
     case 'low':
+    case 'medium_low':
       return 'lightweight';
     case 'medium':
       return 'standard';
+    case 'medium_high':
+      return 'standard';
     case 'high':
-    case 'critical':
       return 'full';
   }
 }
@@ -68,7 +70,7 @@ export function applyTriageDecision(
   const nextStatus = nextStatusAfterTriage(decision.governancePath);
 
   const triage: TriageDecision = {
-    confirmedRiskTier: decision.confirmedRiskTier,
+    confirmedInherentTier: decision.confirmedInherentTier,
     riskTierOverridden: decision.riskTierOverridden,
     overrideReason: decision.overrideReason,
     governancePath: decision.governancePath,
@@ -86,11 +88,6 @@ export function applyTriageDecision(
 
   return {
     ...useCase,
-    classification: {
-      ...useCase.classification,
-      // Update the official classification to reflect the confirmed tier
-      riskTier: decision.confirmedRiskTier,
-    },
     triage,
     status: nextStatus,
     timeline: [...useCase.timeline, statusChange],

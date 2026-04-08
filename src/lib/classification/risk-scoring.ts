@@ -126,7 +126,7 @@ function getGovernanceRequirements(level: RiskLevel): string[] {
       return [
         'Full risk assessment',
         'Quarterly review',
-        'ERAI analyst review',
+        'Governance analyst review',
         'Monitoring plan required',
       ];
     case 'critical':

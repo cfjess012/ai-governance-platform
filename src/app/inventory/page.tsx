@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { type InherentRiskTier, TIER_DISPLAY } from '@/lib/risk/types';
 import { useInventoryStore } from '@/lib/store/inventory-store';
 import type { AIUseCase, AIUseCaseStatus } from '@/types/inventory';
 
@@ -36,20 +37,45 @@ const statusColors: Record<AIUseCaseStatus, string> = {
   decommissioned: 'bg-slate-100 text-slate-500',
 };
 
-const riskTierColors: Record<string, string> = {
-  low: 'bg-green-100 text-green-800 border-green-200',
-  medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+const PENDING_BADGE = 'bg-slate-100 text-slate-600 border-slate-200';
+
+/** Inherent risk badge — uses TIER_DISPLAY for the 5-tier system */
+function InherentRiskBadge({ useCase }: { useCase: AIUseCase }) {
+  const tier = useCase.inherentRisk?.tier;
+  if (!tier) {
+    return (
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${PENDING_BADGE}`}
+      >
+        Pending
+      </span>
+    );
+  }
+  const display = TIER_DISPLAY[tier];
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${display.badgeClasses}`}
+    >
+      {display.label}
+    </span>
+  );
+}
+
+const EU_TIER_BADGES: Record<string, string> = {
+  prohibited: 'bg-red-100 text-red-800 border-red-200',
   high: 'bg-orange-100 text-orange-800 border-orange-200',
-  critical: 'bg-red-100 text-red-800 border-red-200',
+  limited: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  minimal: 'bg-slate-100 text-slate-600 border-slate-200',
   pending: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
-function RiskBadge({ tier }: { tier: string }) {
+/** EU AI Act tier badge — separate from inherent risk */
+function EuAiActBadge({ tier }: { tier: string }) {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${riskTierColors[tier] ?? riskTierColors.pending}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${EU_TIER_BADGES[tier] ?? PENDING_BADGE}`}
     >
-      {tier === 'pending' ? 'Pending' : tier.charAt(0).toUpperCase() + tier.slice(1)}
+      {tier === 'pending' ? 'Pending' : tier}
     </span>
   );
 }
@@ -66,16 +92,22 @@ function UseCaseRow({ useCase }: { useCase: AIUseCase }) {
         </Link>
       </td>
       <td className="px-4 py-3 text-sm text-slate-600">
-        {useCase.intake.aiType?.replace('_', ' ')}
+        {(() => {
+          const aiType = useCase.intake.aiType;
+          if (!aiType) return '';
+          // Defensive: handle both legacy string and new array shape
+          const arr = Array.isArray(aiType) ? aiType : [aiType as string];
+          return arr.map((t) => t.replace(/_/g, ' ')).join(', ');
+        })()}
       </td>
       <td className="px-4 py-3 text-sm text-slate-600">
         {useCase.intake.lifecycleStage?.replace('_', ' ')}
       </td>
       <td className="px-4 py-3">
-        <RiskBadge tier={useCase.classification.riskTier} />
+        <InherentRiskBadge useCase={useCase} />
       </td>
       <td className="px-4 py-3">
-        <RiskBadge tier={useCase.classification.euAiActTier} />
+        <EuAiActBadge tier={useCase.classification.euAiActTier} />
       </td>
       <td className="px-4 py-3 text-sm text-slate-600">{useCase.intake.useCaseOwner}</td>
       <td className="px-4 py-3 text-sm text-slate-600">{useCase.intake.businessArea}</td>
@@ -115,7 +147,7 @@ export default function InventoryPage() {
     }
 
     if (filterRisk !== 'all') {
-      result = result.filter((uc) => uc.classification.riskTier === filterRisk);
+      result = result.filter((uc) => uc.inherentRisk?.tier === filterRisk);
     }
 
     if (filterStatus !== 'all') {
@@ -130,10 +162,12 @@ export default function InventoryPage() {
           aVal = a.intake.useCaseName ?? '';
           bVal = b.intake.useCaseName ?? '';
           break;
-        case 'riskTier':
-          aVal = a.classification.riskTier;
-          bVal = b.classification.riskTier;
-          break;
+        case 'riskTier': {
+          // Sort by tier ordinal (numeric) so Low < Medium-Low < Medium < Medium-High < High
+          const aOrd = a.inherentRisk ? TIER_DISPLAY[a.inherentRisk.tier].ordinal : 0;
+          const bOrd = b.inherentRisk ? TIER_DISPLAY[b.inherentRisk.tier].ordinal : 0;
+          return sortDir === 'asc' ? aOrd - bOrd : bOrd - aOrd;
+        }
         default:
           aVal = a.createdAt;
           bVal = b.createdAt;
@@ -146,13 +180,21 @@ export default function InventoryPage() {
 
   // Stats
   const stats = useMemo(() => {
-    const byRisk = { low: 0, medium: 0, high: 0, critical: 0, pending: 0 };
+    const byRisk: Record<InherentRiskTier | 'pending', number> = {
+      low: 0,
+      medium_low: 0,
+      medium: 0,
+      medium_high: 0,
+      high: 0,
+      pending: 0,
+    };
     const byStage: Record<string, number> = {};
     let pendingAssessment = 0;
 
     for (const uc of useCases) {
-      const tier = uc.classification.riskTier;
-      if (tier in byRisk) byRisk[tier as keyof typeof byRisk]++;
+      const tier = uc.inherentRisk?.tier;
+      if (tier && tier in byRisk) byRisk[tier]++;
+      else byRisk.pending++;
       const stage = uc.intake.lifecycleStage ?? 'unknown';
       byStage[stage] = (byStage[stage] ?? 0) + 1;
       if (uc.status === 'assessment_required') pendingAssessment++;
@@ -183,16 +225,21 @@ export default function InventoryPage() {
         </Link>
       </div>
 
-      {/* Stats cards */}
+      {/* Stats cards — 5 inherent risk tiers */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        {Object.entries(stats.byRisk).map(([tier, count]) => (
-          <div key={tier} className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-              {tier} Risk
-            </p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{count}</p>
-          </div>
-        ))}
+        {(['low', 'medium_low', 'medium', 'medium_high', 'high'] as InherentRiskTier[]).map(
+          (tier) => {
+            const display = TIER_DISPLAY[tier];
+            return (
+              <div key={tier} className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  {display.label}
+                </p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{stats.byRisk[tier]}</p>
+              </div>
+            );
+          },
+        )}
       </div>
 
       {stats.pendingAssessment > 0 && (
@@ -218,12 +265,14 @@ export default function InventoryPage() {
           onChange={(e) => setFilterRisk(e.target.value)}
           className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00539B]/20"
         >
-          <option value="all">All Risk Tiers</option>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-          <option value="critical">Critical</option>
-          <option value="pending">Pending</option>
+          <option value="all">All Inherent Tiers</option>
+          {(['low', 'medium_low', 'medium', 'medium_high', 'high'] as InherentRiskTier[]).map(
+            (tier) => (
+              <option key={tier} value={tier}>
+                {TIER_DISPLAY[tier].label}
+              </option>
+            ),
+          )}
         </select>
         <select
           value={filterStatus}
@@ -261,7 +310,8 @@ export default function InventoryPage() {
                   className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:text-slate-900"
                   onClick={() => handleSort('riskTier')}
                 >
-                  Risk Tier {sortField === 'riskTier' && (sortDir === 'asc' ? '\u2191' : '\u2193')}
+                  Inherent Tier{' '}
+                  {sortField === 'riskTier' && (sortDir === 'asc' ? '\u2191' : '\u2193')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   EU AI Act

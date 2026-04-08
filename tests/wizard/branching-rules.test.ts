@@ -6,6 +6,7 @@ import {
   getVisibleIntakeStages,
   getVisibleQuestions,
   getWarningBanners,
+  isFastTrackEligible,
 } from '@/lib/questions/branching-rules';
 
 describe('Intake Branching Rules', () => {
@@ -309,6 +310,154 @@ describe('Intake Branching Rules', () => {
         howAiHelps: 'AI will classify and route documents',
       });
       expect(partial.estimatedMinutes).toBeLessThan(empty.estimatedMinutes);
+    });
+  });
+
+  describe('isFastTrackEligible', () => {
+    /** Build a state that meets every fast-track condition */
+    function eligibleState() {
+      return {
+        thirdPartyInvolved: 'yes',
+        aiType: ['generative_ai'],
+        dataSensitivity: ['public', 'internal'],
+        highRiskTriggers: ['none_of_above'],
+        whoUsesSystem: 'internal_only' as const,
+        whoAffected: 'internal_only' as const,
+        worstOutcome: 'minor',
+      };
+    }
+
+    it('returns true when all conditions are met', () => {
+      expect(isFastTrackEligible(eligibleState())).toBe(true);
+    });
+
+    it('returns false when not third-party', () => {
+      expect(isFastTrackEligible({ ...eligibleState(), thirdPartyInvolved: 'no' })).toBe(false);
+    });
+
+    it('returns false when AI type does not include generative_ai', () => {
+      expect(
+        isFastTrackEligible({ ...eligibleState(), aiType: ['predictive_classification'] }),
+      ).toBe(false);
+    });
+
+    it('returns false when data sensitivity includes PII', () => {
+      expect(
+        isFastTrackEligible({ ...eligibleState(), dataSensitivity: ['public', 'personal_info'] }),
+      ).toBe(false);
+    });
+
+    it('returns false when data sensitivity includes customer confidential', () => {
+      expect(
+        isFastTrackEligible({
+          ...eligibleState(),
+          dataSensitivity: ['public', 'customer_confidential'],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when a substantive high-risk trigger is selected', () => {
+      expect(
+        isFastTrackEligible({ ...eligibleState(), highRiskTriggers: ['investment_advice'] }),
+      ).toBe(false);
+    });
+
+    it('returns false when financial_info_retrieval is the only trigger (still allowed)', () => {
+      // financial_info_retrieval is treated as low-risk and SHOULD allow fast-track
+      // when combined with otherwise eligible state
+      expect(
+        isFastTrackEligible({
+          ...eligibleState(),
+          highRiskTriggers: ['financial_info_retrieval'],
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false when external users are present', () => {
+      expect(isFastTrackEligible({ ...eligibleState(), whoUsesSystem: 'external_only' })).toBe(
+        false,
+      );
+    });
+
+    it('returns false when external people are affected', () => {
+      expect(isFastTrackEligible({ ...eligibleState(), whoAffected: 'external' })).toBe(false);
+    });
+
+    it('returns false when worst outcome is significant', () => {
+      expect(isFastTrackEligible({ ...eligibleState(), worstOutcome: 'significant' })).toBe(false);
+    });
+
+    it('returns false when worst outcome is serious', () => {
+      expect(isFastTrackEligible({ ...eligibleState(), worstOutcome: 'serious' })).toBe(false);
+    });
+
+    it('returns false when state is empty', () => {
+      expect(isFastTrackEligible({})).toBe(false);
+    });
+  });
+
+  describe('Fast-track section visibility', () => {
+    /** Build a state that meets fast-track eligibility */
+    function eligibleState() {
+      return {
+        thirdPartyInvolved: 'yes',
+        aiType: ['generative_ai'],
+        dataSensitivity: ['public'],
+        highRiskTriggers: ['none_of_above'],
+        whoUsesSystem: 'internal_only' as const,
+        whoAffected: 'internal_only' as const,
+        worstOutcome: 'minor',
+      };
+    }
+
+    it('hides section-c questions when fast-track is opted in', () => {
+      const visible = getVisibleIntakeQuestions({ ...eligibleState(), fastTrackOptIn: true });
+      expect(visible.has('intake-q22')).toBe(false); // strategicPriority
+      expect(visible.has('intake-q26')).toBe(false); // valueCreationLevers
+      expect(visible.has('intake-q29')).toBe(false); // reviewUrgency
+    });
+
+    it('hides section-c stage when fast-track is opted in', () => {
+      const stages = getVisibleIntakeStages({ ...eligibleState(), fastTrackOptIn: true });
+      expect(stages).not.toContain('section-c');
+      expect(stages).toContain('review');
+    });
+
+    it('shows section-c when fast-track is opted in but no longer eligible', () => {
+      // User opted in, then changed data sensitivity to include PII
+      const visible = getVisibleIntakeQuestions({
+        ...eligibleState(),
+        dataSensitivity: ['personal_info'],
+        fastTrackOptIn: true,
+      });
+      expect(visible.has('intake-q22')).toBe(true); // section-c reappears
+    });
+
+    it('shows section-c when fast-track is declined', () => {
+      const visible = getVisibleIntakeQuestions({
+        ...eligibleState(),
+        fastTrackOptIn: false,
+      });
+      expect(visible.has('intake-q22')).toBe(true);
+    });
+
+    it('shows section-c when fast-track decision not yet made', () => {
+      const visible = getVisibleIntakeQuestions({ ...eligibleState() });
+      expect(visible.has('intake-q22')).toBe(true);
+    });
+  });
+
+  describe('Shadow AI banner', () => {
+    it('shows informational banner for in_use_seeking_approval lifecycle', () => {
+      const banners = getInlineBanners({ lifecycleStage: 'in_use_seeking_approval' });
+      const banner = banners.find((b) => b.id === 'shadow-ai-informal-use');
+      expect(banner).toBeDefined();
+      expect(banner?.severity).toBe('info');
+    });
+
+    it('does not show shadow-ai banner for other lifecycle stages', () => {
+      const banners = getInlineBanners({ lifecycleStage: 'in_production' });
+      expect(banners.find((b) => b.id === 'shadow-ai-informal-use')).toBeUndefined();
     });
   });
 });

@@ -1,11 +1,18 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { ConditionalField } from '@/components/wizard/ConditionalField';
 import { QuestionRenderer } from '@/components/wizard/QuestionRenderer';
 import { assessmentQuestions, assessmentSections } from '@/config/questions';
+import {
+  type AssessmentSectionId,
+  calculatePathBasedVisibility,
+  deriveAssessmentValuesFromIntake,
+  getPrePopulatedFields,
+} from '@/lib/assessment/section-visibility';
 import type { EuAssessmentInput } from '@/lib/classification/eu-ai-act-assessment';
 import { classifyEuAiActAssessment } from '@/lib/classification/eu-ai-act-assessment';
 import type { SevenDimensionInput } from '@/lib/classification/seven-dimension-scoring';
@@ -17,6 +24,7 @@ import {
 } from '@/lib/questions/assessment-branching';
 import { useAssessmentStore } from '@/lib/store/assessment-store';
 import { useInventoryStore } from '@/lib/store/inventory-store';
+import type { GovernancePath } from '@/types/inventory';
 
 function buildScoringInput(formData: Record<string, unknown>): SevenDimensionInput {
   return {
@@ -64,6 +72,7 @@ export default function AssessmentPageWrapper() {
 
 function AssessmentPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const useCaseIdParam = searchParams.get('useCaseId');
 
   const {
@@ -86,8 +95,19 @@ function AssessmentPage() {
   const updateStatus = useInventoryStore((s) => s.updateStatus);
 
   const [submitResult, setSubmitResult] = useState<{ id: string } | null>(null);
+  const [showAllSections, setShowAllSections] = useState(false);
 
-  // Pre-populate from intake on first load
+  // Look up the linked case (used for triage decision and intake-driven derivations)
+  const linkedCase = useMemo(
+    () => useCases.find((uc) => uc.id === (useCaseIdParam ?? useCaseId)),
+    [useCases, useCaseIdParam, useCaseId],
+  );
+
+  const governancePath: GovernancePath = linkedCase?.triage?.governancePath ?? 'standard';
+  const linkedIntake = linkedCase?.intake;
+
+  // Pre-populate from intake on first load.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally only runs once on mount
   useEffect(() => {
     if (useCaseIdParam && !useCaseId) {
       setUseCaseId(useCaseIdParam);
@@ -96,7 +116,8 @@ function AssessmentPage() {
       const uc = useCases.find((u) => u.id === useCaseIdParam);
       if (uc) {
         const stage = uc.intake.lifecycleStage;
-        prePopulate({
+        // Lifecycle/timeline derivation (existing)
+        const lifecycleDerived = {
           currentStage:
             stage === 'development_poc'
               ? 'poc'
@@ -104,22 +125,65 @@ function AssessmentPage() {
                 ? 'in_development'
                 : stage === 'idea_planning'
                   ? 'ideation'
-                  : 'backlog',
+                  : stage === 'in_use_seeking_approval'
+                    ? 'in_development'
+                    : 'backlog',
           plannedPocDate: uc.intake.targetPocQuarter,
           plannedProductionDate: uc.intake.targetProductionQuarter,
-        });
+        };
+        // New: derive overlapping fields from intake (data classification, vendor, GenAI, etc.)
+        const intakeDerived = deriveAssessmentValuesFromIntake(uc.intake);
+        prePopulate({ ...lifecycleDerived, ...intakeDerived } as never);
         updateStatus(useCaseIdParam, 'assessment_in_progress', 'mock-user@example.com');
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const visibleQuestionIds = useMemo(() => getVisibleAssessmentQuestions(formData), [formData]);
-  const visibleSectionIds = useMemo(() => getVisibleAssessmentSections(formData), [formData]);
-  const visibleSections = useMemo(
-    () => assessmentSections.filter((s) => visibleSectionIds.includes(s.id)),
-    [visibleSectionIds],
+  // Redirect lightweight cases to the lightweight review form
+  useEffect(() => {
+    if (linkedCase?.triage?.governancePath === 'lightweight') {
+      router.replace(`/review/lightweight/${linkedCase.id}`);
+    }
+  }, [linkedCase, router]);
+
+  // Compute pre-populated field set (for read-only display)
+  const prePopulatedFields = useMemo(
+    () => (linkedIntake ? getPrePopulatedFields(linkedIntake) : new Set<string>()),
+    [linkedIntake],
   );
+
+  const visibleQuestionIds = useMemo(() => getVisibleAssessmentQuestions(formData), [formData]);
+
+  // Path-based visibility (uses intake + governance path)
+  const pathVisibility = useMemo(() => {
+    if (!linkedIntake) {
+      // No linked case yet — show every section (backwards compatible)
+      return {
+        visible: assessmentSections.map((s) => s.id) as AssessmentSectionId[],
+        skipped: [],
+      };
+    }
+    return calculatePathBasedVisibility(linkedIntake, governancePath);
+  }, [linkedIntake, governancePath]);
+
+  // Combine path-based gating with the existing answer-based branching
+  const branchingVisibleSectionIds = useMemo(
+    () => getVisibleAssessmentSections(formData),
+    [formData],
+  );
+
+  const visibleSections = useMemo(() => {
+    const pathSet = new Set<string>(pathVisibility.visible);
+    return assessmentSections.filter((s) => {
+      // Always show review section
+      if (s.id === 'assessment-review') return true;
+      // The "view all" toggle bypasses path-based gating
+      if (showAllSections) return branchingVisibleSectionIds.includes(s.id);
+      // Otherwise: must be visible in BOTH path-based and answer-based branching
+      return pathSet.has(s.id) && branchingVisibleSectionIds.includes(s.id);
+    });
+  }, [pathVisibility.visible, branchingVisibleSectionIds, showAllSections]);
+
   const showFria = useMemo(() => shouldShowFriaBanner(formData), [formData]);
 
   const currentSection = visibleSections[currentSectionIndex] ?? visibleSections[0];
@@ -248,14 +312,76 @@ function AssessmentPage() {
     );
   }
 
+  const pathLabels: Record<GovernancePath, { label: string; classes: string }> = {
+    lightweight: { label: 'Lightweight Review', classes: 'bg-cyan-50 text-cyan-700' },
+    standard: { label: 'Standard Assessment', classes: 'bg-blue-50 text-blue-700' },
+    full: { label: 'Full Assessment + Committee', classes: 'bg-purple-50 text-purple-700' },
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">Pre-Production Risk Assessment</h1>
-        <p className="text-sm text-slate-500">
-          {visibleSections.length - 1} sections &middot; Adaptive assessment based on your answers
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 mb-1">Pre-Production Risk Assessment</h1>
+          <p className="text-sm text-slate-500">
+            {visibleSections.length - 1} sections &middot;{' '}
+            {linkedCase ? (
+              <>
+                Linked to{' '}
+                <Link
+                  href={`/inventory/${linkedCase.id}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  {linkedCase.intake.useCaseName}
+                </Link>
+              </>
+            ) : (
+              'Adaptive assessment based on your answers'
+            )}
+          </p>
+        </div>
+        {linkedCase?.triage && (
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${pathLabels[governancePath].classes}`}
+            >
+              {pathLabels[governancePath].label}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowAllSections((v) => !v)}
+              className="text-xs text-slate-500 hover:text-blue-600 underline-offset-2 hover:underline"
+            >
+              {showAllSections ? 'Apply path filter' : 'View all sections'}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Skipped sections summary (only shown when path filter is active) */}
+      {linkedCase?.triage && !showAllSections && pathVisibility.skipped.length > 0 && (
+        <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+          <p className="text-xs font-semibold text-slate-600 mb-2">
+            {pathVisibility.skipped.length}{' '}
+            {pathVisibility.skipped.length === 1 ? 'section' : 'sections'} auto-skipped based on
+            intake and governance path
+          </p>
+          <ul className="space-y-1">
+            {pathVisibility.skipped.map((s) => {
+              const sect = assessmentSections.find((sec) => sec.id === s.sectionId);
+              return (
+                <li key={s.sectionId} className="text-xs text-slate-500 flex items-start gap-1.5">
+                  <span className="text-slate-300 mt-px">&bull;</span>
+                  <span>
+                    <strong className="text-slate-600">{sect?.title ?? s.sectionId}:</strong>{' '}
+                    {s.reason}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {showFria && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -323,11 +449,27 @@ function AssessmentPage() {
             <div className="space-y-6">
               {sectionQuestions.map((q) => {
                 const question = q.id === 'assess-q1' ? { ...q, options: useCaseOptions } : q;
+                const isPrePopulated = prePopulatedFields.has(q.field);
+                const fieldValue = formData[q.field as keyof typeof formData];
+
+                if (isPrePopulated && linkedCase) {
+                  return (
+                    <ConditionalField key={q.id} visible={true}>
+                      <PrePopulatedDisplay
+                        label={q.label}
+                        value={fieldValue}
+                        options={q.options}
+                        useCaseId={linkedCase.id}
+                      />
+                    </ConditionalField>
+                  );
+                }
+
                 return (
                   <ConditionalField key={q.id} visible={true}>
                     <QuestionRenderer
                       question={question}
-                      value={formData[q.field as keyof typeof formData]}
+                      value={fieldValue}
                       onChange={handleFieldChange}
                     />
                   </ConditionalField>
@@ -353,6 +495,56 @@ function AssessmentPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Read-only display for fields that were pre-populated from intake.
+ * Shows the value, a "from intake" badge, and a link to edit in intake.
+ */
+function PrePopulatedDisplay({
+  label,
+  value,
+  options,
+  useCaseId,
+}: {
+  label: string;
+  value: unknown;
+  options?: { value: string; label: string }[];
+  useCaseId: string;
+}) {
+  const formatted = (() => {
+    if (value === undefined || value === null || value === '') return '\u2014';
+    if (Array.isArray(value)) {
+      if (options) {
+        return value.map((v) => options.find((o) => o.value === v)?.label ?? v).join(', ');
+      }
+      return value.join(', ');
+    }
+    if (options) {
+      return options.find((o) => o.value === value)?.label ?? String(value);
+    }
+    return String(value);
+  })();
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <span className="block text-sm font-medium text-slate-700">{label}</span>
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-medium text-slate-500">
+          From intake
+        </span>
+      </div>
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+        {formatted}
+      </div>
+      <p className="text-xs text-slate-400">
+        This value was captured at intake.{' '}
+        <Link href={`/inventory/${useCaseId}`} className="text-blue-600 hover:underline">
+          Edit in intake
+        </Link>
+      </p>
     </div>
   );
 }

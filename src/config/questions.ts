@@ -40,7 +40,7 @@ export const intakeQuestions: QuestionDefinition[] = [
     label: 'Use Case Name',
     helpText: 'Provide a name that clearly describes the problem being solved.',
     whyWeAsk:
-      'A clear name helps the ERAI team triage and prioritize use cases quickly. It also appears in dashboards and reports shown to leadership.',
+      'A clear name helps the governance team triage and prioritize use cases quickly. It also appears in dashboards and reports shown to leadership.',
     type: 'text',
     required: true,
     section: 'Tell Us About Your AI Use Case',
@@ -125,7 +125,7 @@ export const intakeQuestions: QuestionDefinition[] = [
     label: 'How does the AI help solve it?',
     helpText: 'Explain how AI is applied to address the business problem.',
     whyWeAsk:
-      'The AI application method is analyzed for keywords that may trigger EU AI Act high-risk classification (e.g., hiring, credit decisioning). A clear description also helps ERAI analysts understand the use case without scheduling a follow-up meeting.',
+      'The AI application method is analyzed for keywords that may trigger EU AI Act high-risk classification (e.g., hiring, credit decisioning). A clear description also helps governance analysts understand the use case without scheduling a follow-up meeting.',
     type: 'textarea',
     required: true,
     section: 'Tell Us About Your AI Use Case',
@@ -136,10 +136,11 @@ export const intakeQuestions: QuestionDefinition[] = [
     id: 'intake-q7',
     field: 'aiType',
     label: 'AI Type',
-    helpText: 'What type of AI technology is being used?',
+    helpText:
+      'Select all that apply. Many modern AI tools combine multiple types (e.g., a RAG chatbot uses both Generative AI and RAG).',
     whyWeAsk:
       'Different AI types carry different risk profiles. Generative AI and AI Agents require additional scrutiny around hallucination, autonomy, and output control.',
-    type: 'select',
+    type: 'multiselect',
     required: true,
     section: 'Tell Us About Your AI Use Case',
     stage: 'section-a',
@@ -148,10 +149,10 @@ export const intakeQuestions: QuestionDefinition[] = [
       { value: 'generative_ai', label: 'Generative AI' },
       { value: 'predictive_classification', label: 'Predictive/Classification Model' },
       { value: 'rpa_with_ai', label: 'RPA with AI' },
-      { value: 'ai_agent', label: 'AI Agent' },
+      { value: 'ai_agent', label: 'AI Agent (autonomous tool use, planning)' },
       { value: 'computer_vision', label: 'Computer Vision' },
-      { value: 'rag', label: 'RAG' },
-      { value: 'other_not_sure', label: 'Other/Not Sure' },
+      { value: 'rag', label: 'RAG (Retrieval-Augmented Generation)' },
+      { value: 'other_not_sure', label: 'Other / Not sure' },
     ],
   },
   {
@@ -217,8 +218,23 @@ export const intakeQuestions: QuestionDefinition[] = [
     stage: 'section-a',
     form: 'intake',
     options: [
-      { value: 'can_inspect', label: 'We can inspect it' },
-      { value: 'black_box', label: "It's a black box" },
+      {
+        value: 'can_inspect',
+        label: 'Full inspection — model internals, training data, decision logic',
+        helpText: 'Typical for in-house models or open-source models you control.',
+      },
+      {
+        value: 'inputs_outputs_only',
+        label: 'Inputs and outputs only — model internals are opaque',
+        helpText:
+          'The most common reality for SaaS AI tools (Claude, ChatGPT, Cursor, Copilot). You can log requests/responses but cannot see how the model arrived at its output.',
+      },
+      {
+        value: 'black_box',
+        label: 'Black box — limited or no visibility',
+        helpText:
+          'No request/response logging available, or vendor refuses to provide audit access.',
+      },
       { value: 'dont_know', label: "I don't know" },
     ],
   },
@@ -236,7 +252,18 @@ export const intakeQuestions: QuestionDefinition[] = [
     form: 'intake',
     options: [
       { value: 'no', label: 'No' },
-      { value: 'yes', label: 'Yes' },
+      {
+        value: 'yes',
+        label: 'Yes — we know which model(s)',
+        helpText:
+          'Select if you know the specific model(s) used (e.g., GPT-4o, Claude 3.5 Sonnet, Llama 3).',
+      },
+      {
+        value: 'yes_vendor_managed',
+        label: 'Yes — vendor manages model selection',
+        helpText:
+          "Select if a SaaS vendor (e.g., Claude Code, ChatGPT, Cursor, Microsoft Copilot) chooses or rotates models behind the scenes and you don't directly control which model is used.",
+      },
       { value: 'dont_know', label: "I don't know" },
     ],
   },
@@ -299,10 +326,16 @@ export const intakeQuestions: QuestionDefinition[] = [
     stage: 'section-a',
     form: 'intake',
     options: [
-      { value: 'idea_planning', label: 'Idea/planning' },
-      { value: 'development_poc', label: 'Development/POC' },
-      { value: 'testing_pilot', label: 'Testing/pilot' },
-      { value: 'in_production', label: 'Live in production' },
+      { value: 'idea_planning', label: 'Idea / planning' },
+      { value: 'development_poc', label: 'Development / POC' },
+      { value: 'testing_pilot', label: 'Testing / pilot' },
+      {
+        value: 'in_use_seeking_approval',
+        label: 'Already in use (seeking approval)',
+        helpText:
+          'Use this if you are already using the tool informally (e.g., personal productivity, team experiment) and want to register it for governance approval. No stigma — registering shadow AI is the right thing to do.',
+      },
+      { value: 'in_production', label: 'Live in production (formally deployed)' },
       { value: 'being_retired', label: 'Being retired' },
     ],
   },
@@ -377,6 +410,30 @@ export const intakeQuestions: QuestionDefinition[] = [
       { value: 'fine_tuning_llm', label: 'Fine-tuning a foundation model' },
       { value: 'biometric_id', label: 'Biometric identification' },
       { value: 'emotion_detection', label: 'Emotion or sentiment detection' },
+      {
+        value: 'code_to_production',
+        label: 'Generates code that enters production systems',
+        helpText:
+          'Select if AI-generated code is committed, deployed, or merged into production systems (e.g., Copilot, Claude Code generating production patches). Carries security and IP exposure risk.',
+      },
+      {
+        value: 'proprietary_ip',
+        label: 'Processes proprietary intellectual property or trade secrets',
+        helpText:
+          'Select if the system ingests source code, patents, internal documents, customer contracts, or other IP/trade secrets — particularly important for SaaS AI tools where data leaves the corporate boundary.',
+      },
+      {
+        value: 'external_content_generation',
+        label: 'Generates content for external audiences',
+        helpText:
+          'Select if AI produces content that will be seen by customers, prospects, or the public (marketing copy, customer-facing chatbot responses, support documentation, social media posts).',
+      },
+      {
+        value: 'security_vulnerability_risk',
+        label: 'Could introduce security vulnerabilities',
+        helpText:
+          'Select if AI failures or hallucinations could create security risks (e.g., generating insecure code, misconfiguring infrastructure, mishandling secrets).',
+      },
       { value: 'none_of_above', label: 'None of the above' },
     ],
   },
@@ -421,11 +478,12 @@ export const intakeQuestions: QuestionDefinition[] = [
   {
     id: 'intake-q16',
     field: 'worstOutcome',
-    label: 'If this system produces incorrect results, which scenario best applies?',
+    label:
+      'What is the worst realistic outcome if this system fails or produces incorrect results?',
     helpText:
-      'Select the scenario that most closely matches the realistic worst case. Think about what happens to the people affected, not just the business.',
+      'Consider both human impact (people receiving wrong information or unfair decisions) and system impact (technical failures, security issues, IP exposure). Pick the level that represents the realistic worst case.',
     whyWeAsk:
-      'Impact severity is a key factor in risk classification. We use scenario-based framing rather than abstract severity levels to ensure consistent assessment across teams.',
+      'Impact severity is a key factor in risk classification. We use scenario-based framing covering both human and system impacts to ensure technical and non-technical use cases are assessed consistently.',
     type: 'select',
     required: true,
     section: 'Tell Us About Your AI Use Case',
@@ -434,32 +492,32 @@ export const intakeQuestions: QuestionDefinition[] = [
     options: [
       {
         value: 'minor',
-        label: 'Someone is mildly inconvenienced',
+        label: 'Minimal impact — easily caught and corrected',
         helpText:
-          'E.g., a report has a formatting error, a search returns imperfect results, an internal summary needs manual correction.',
+          'Examples: a report has a formatting error, a search returns imperfect results, an internal summary needs manual correction, a code suggestion is rejected before merge.',
       },
       {
         value: 'moderate',
-        label: 'Someone receives wrong information and may act on it',
+        label: 'Moderate impact — wrong information, minor delays, individual inconvenience',
         helpText:
-          'E.g., an employee gets incorrect policy guidance, a participant sees the wrong plan details, a customer gets a delayed response.',
+          'Examples: an employee gets incorrect policy guidance, a customer waits longer for a response, AI-generated content needs significant human cleanup, code suggestion introduces a non-critical bug caught in review.',
       },
       {
         value: 'significant',
-        label: 'Someone could suffer financial harm or lose access to a service',
+        label: 'Significant impact — financial harm, security vulnerabilities, or denied access',
         helpText:
-          'E.g., a participant makes a financial decision based on wrong advice, a claim is incorrectly denied, coverage is priced unfairly, someone is wrongly flagged for fraud.',
+          'Examples: a participant makes a financial decision based on wrong advice, a claim is incorrectly denied, AI-generated code introduces a security vulnerability that reaches production, IP/trade secrets are exposed to a third-party SaaS, an outage degrades a customer-facing service.',
       },
       {
         value: 'serious',
-        label: 'Someone could suffer harm that is hard to reverse or detect',
+        label: 'Serious impact — widespread or hard to reverse',
         helpText:
-          'E.g., discriminatory outcomes applied at scale before detection, widespread incorrect benefits calculations, regulatory violations affecting many people, systematic denial of coverage.',
+          'Examples: discriminatory outcomes applied at scale before detection, widespread incorrect benefits calculations, regulatory violations affecting many people, systematic denial of coverage, a major data breach traceable to AI behavior, compromise of critical infrastructure.',
       },
     ],
   },
 
-  // ── Section B: Additional Details for ERAI (5 questions) ──
+  // ── Section B: Risk & Data Details (5 questions) ──
   {
     id: 'intake-q17',
     field: 'dataSensitivity',
@@ -469,7 +527,7 @@ export const intakeQuestions: QuestionDefinition[] = [
       'Data sensitivity determines privacy requirements, security controls, and whether additional assessments (DPIA, data governance review) are needed.',
     type: 'multiselect',
     required: true,
-    section: 'Additional Details for ERAI',
+    section: 'Risk & Data Details',
     stage: 'section-b',
     form: 'intake',
     options: [
@@ -494,7 +552,7 @@ export const intakeQuestions: QuestionDefinition[] = [
       'The actual level of human oversight is a key input to risk classification. Systems with less human review require stronger automated controls.',
     type: 'select',
     required: true,
-    section: 'Additional Details for ERAI',
+    section: 'Risk & Data Details',
     stage: 'section-b',
     form: 'intake',
     options: [
@@ -515,7 +573,7 @@ export const intakeQuestions: QuestionDefinition[] = [
       'Bias and fairness assessment requirements depend on the potential for differential treatment. This triggers fairness testing requirements in the pre-production assessment.',
     type: 'select',
     required: true,
-    section: 'Additional Details for ERAI',
+    section: 'Risk & Data Details',
     stage: 'section-b',
     form: 'intake',
     options: [
@@ -535,7 +593,7 @@ export const intakeQuestions: QuestionDefinition[] = [
       'Scale of impact is a multiplier in risk scoring. Higher-scale systems require more rigorous monitoring and testing.',
     type: 'select',
     required: true,
-    section: 'Additional Details for ERAI',
+    section: 'Risk & Data Details',
     stage: 'section-b',
     form: 'intake',
     options: [
@@ -555,7 +613,7 @@ export const intakeQuestions: QuestionDefinition[] = [
       'Free-form context often surfaces risk factors or mitigations that structured questions miss.',
     type: 'textarea',
     required: false,
-    section: 'Additional Details for ERAI',
+    section: 'Risk & Data Details',
     stage: 'section-b',
     form: 'intake',
   },
@@ -587,7 +645,7 @@ export const intakeQuestions: QuestionDefinition[] = [
     label: 'Target POC Implementation Quarter',
     helpText: 'When do you plan to have a proof of concept ready?',
     whyWeAsk:
-      'Target dates help the ERAI team plan their review capacity and ensure governance checkpoints happen before deployment, not after.',
+      'Target dates help the governance team plan their review capacity and ensure governance checkpoints happen before deployment, not after.',
     type: 'select',
     required: false,
     section: 'Portfolio Alignment',
@@ -725,9 +783,26 @@ export const intakeQuestions: QuestionDefinition[] = [
         label: 'VP \u2013 Risk Avoidance \u2013 Increased Fault Tolerance',
       },
       { value: 'vp_reduce_exceptions', label: 'VP \u2013 Risk Avoidance \u2013 Reduce Exceptions' },
-      { value: 'placeholder_1', label: 'Placeholder Lever 1' },
-      { value: 'placeholder_2', label: 'Placeholder Lever 2' },
-      { value: 'placeholder_3', label: 'Placeholder Lever 3' },
+      {
+        value: 'em_employee_productivity',
+        label: 'EM \u2013 Operating Expense \u2013 Employee Productivity',
+      },
+      {
+        value: 'em_developer_productivity',
+        label: 'EM \u2013 Operating Expense \u2013 Developer / Engineering Productivity',
+      },
+      {
+        value: 'em_talent_retention',
+        label: 'EM \u2013 Operating Expense \u2013 Talent Retention',
+      },
+      {
+        value: 'vp_regulatory_compliance',
+        label: 'VP \u2013 Risk Avoidance \u2013 Regulatory Compliance',
+      },
+      {
+        value: 'vp_internal_knowledge',
+        label: 'VP \u2013 Risk Avoidance \u2013 Internal Knowledge Access & Discovery',
+      },
     ],
   },
   {
@@ -813,9 +888,9 @@ export const intakeStages = [
   },
   {
     id: 'section-b',
-    title: 'Additional Details for ERAI',
+    title: 'Risk & Data Details',
     subtitle: '~3 min',
-    sections: ['Additional Details for ERAI'],
+    sections: ['Risk & Data Details'],
   },
   {
     id: 'section-c',

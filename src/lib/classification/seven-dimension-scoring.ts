@@ -313,7 +313,7 @@ function getGovernanceRequirements(tier: RiskTier): string[] {
         'Semi-annual validation',
         'Enhanced monitoring',
         'Risk committee reporting',
-        'ERAI analyst review',
+        'Governance analyst review',
         'Bias testing required',
       ];
     case 'critical':

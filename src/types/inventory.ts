@@ -2,6 +2,7 @@ import type { EuAiActAssessmentResult } from '@/lib/classification/eu-ai-act-ass
 import type { RiskTier, SevenDimensionResult } from '@/lib/classification/seven-dimension-scoring';
 import type { AssessmentFormData } from '@/lib/questions/assessment-schema';
 import type { IntakeFormData } from '@/lib/questions/intake-schema';
+import type { InherentRiskResult, InherentRiskTier } from '@/lib/risk/types';
 
 export interface StatusChange {
   status: AIUseCaseStatus;
@@ -31,9 +32,9 @@ export type GovernancePath =
 
 /** Triage decision recorded by the governance team */
 export interface TriageDecision {
-  /** Risk tier confirmed or overridden by the reviewer */
-  confirmedRiskTier: RiskTier;
-  /** Whether the reviewer overrode the auto-classification */
+  /** 5-tier inherent risk confirmed (or overridden) by the reviewer */
+  confirmedInherentTier: InherentRiskTier;
+  /** Whether the reviewer overrode the auto-calculated tier */
   riskTierOverridden: boolean;
   /** Reason for override (required if overridden) */
   overrideReason?: string;
@@ -59,6 +60,35 @@ export interface CaseComment {
   timestamp: string;
 }
 
+/** Possible decisions a lightweight reviewer can make */
+export type LightweightDecision = 'approve' | 'changes_requested' | 'escalate' | 'reject';
+
+/**
+ * Lightweight review record. Filled by the assigned reviewer (governance team
+ * member) — NOT by the business user. This is a deliberate single-reviewer
+ * approval artifact for low-risk cases.
+ */
+export interface LightweightReview {
+  /** Has the intake information been verified as accurate? */
+  intakeAccurate: boolean;
+  /** Confirms basic controls are in place (logging, error handling) */
+  basicControlsConfirmed: boolean;
+  /** Named contact responsible for incident escalation */
+  escalationContact: string;
+  /** Reviewer's notes summarizing what was checked and conclusions */
+  reviewNotes: string;
+  /** Final decision */
+  decision: LightweightDecision;
+  /** Conditions of approval (if approved with conditions) */
+  approvalConditions?: string;
+  /** Reason for changes requested or rejection */
+  rejectionReason?: string;
+  /** Who performed the review */
+  reviewedBy: string;
+  /** When the review was completed */
+  reviewedAt: string;
+}
+
 export interface AIUseCase {
   id: string;
   intake: IntakeFormData;
@@ -73,8 +103,18 @@ export interface AIUseCase {
   euAiActDetail?: EuAiActAssessmentResult;
   status: AIUseCaseStatus;
   timeline: StatusChange[];
+  /**
+   * Inherent risk result computed from intake answers.
+   * This is the preliminary risk classification — based on the intake alone,
+   * before any triage override or assessment refinement.
+   * The 5-tier rating, fired rules, fired patterns, and applicable frameworks
+   * all live here.
+   */
+  inherentRisk?: InherentRiskResult;
   /** Triage decision made by the governance team (set after triage) */
   triage?: TriageDecision;
+  /** Lightweight review record (set when governance path is 'lightweight') */
+  lightweightReview?: LightweightReview;
   /** Conversation thread between business user and governance team */
   comments: CaseComment[];
   createdAt: string;

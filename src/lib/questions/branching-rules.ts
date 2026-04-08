@@ -11,7 +11,66 @@ export interface IntakeFormState {
   lifecycleStage?: string;
   previouslyReviewed?: string;
   highRiskTriggers?: string[];
+  /**
+   * If true, the user has opted into fast-track and Section C (Portfolio Alignment)
+   * will be hidden. Set by the wizard when fast-track conditions are met and the
+   * user accepts the offer.
+   */
+  fastTrackOptIn?: boolean;
   [key: string]: unknown;
+}
+
+/**
+ * Fast-track detection: the case is eligible for the lightweight intake path
+ * (skip Portfolio Alignment) when:
+ * - It's a third-party SaaS AI tool (vendor managed)
+ * - Uses generative AI
+ * - Public data only
+ * - No high-risk triggers
+ * - Internal individual use
+ *
+ * This catches the "marketer pasting public articles into Claude" pattern —
+ * forcing them through 28+ governance questions discourages registration.
+ */
+export function isFastTrackEligible(state: IntakeFormState): boolean {
+  // Must be a third-party tool
+  if (state.thirdPartyInvolved !== 'yes') return false;
+
+  // Must use generative AI (multiselect)
+  const aiTypes = Array.isArray(state.aiType) ? (state.aiType as string[]) : [];
+  if (!aiTypes.includes('generative_ai')) return false;
+
+  // Data sensitivity must be ONLY public/internal — no PII, health, financial, customer data
+  const dataSensitivity = Array.isArray(state.dataSensitivity)
+    ? (state.dataSensitivity as string[])
+    : [];
+  const restrictedData = [
+    'customer_confidential',
+    'personal_info',
+    'health_info',
+    'regulated_financial',
+  ];
+  if (dataSensitivity.length === 0) return false; // not answered yet
+  if (dataSensitivity.some((d) => restrictedData.includes(d))) return false;
+
+  // No substantive high-risk triggers (only none_of_above or financial_info_retrieval is OK)
+  const triggers = Array.isArray(state.highRiskTriggers)
+    ? (state.highRiskTriggers as string[])
+    : [];
+  if (triggers.length === 0) return false; // not answered yet
+  const substantive = triggers.filter(
+    (t) => t !== 'none_of_above' && t !== 'financial_info_retrieval',
+  );
+  if (substantive.length > 0) return false;
+
+  // Internal use only
+  if (state.whoUsesSystem !== 'internal_only') return false;
+  if (state.whoAffected !== 'internal_only') return false;
+
+  // Worst outcome must be minor or moderate
+  if (state.worstOutcome !== 'minor' && state.worstOutcome !== 'moderate') return false;
+
+  return true;
 }
 
 /**
@@ -51,19 +110,30 @@ export function getVisibleIntakeQuestions(state: IntakeFormState): Set<string> {
     'intake-q19', // differentialTreatment
     'intake-q20', // peopleAffectedCount
     'intake-q21', // additionalNotes
-    // Section C
-    'intake-q22', // strategicPriority
-    'intake-q23', // targetPocQuarter
-    'intake-q24', // targetProductionQuarter
-    'intake-q25', // valueDescription
-    'intake-q26', // valueCreationLevers
-    'intake-q27', // reflectedInBudget
-    'intake-q28', // valueEstimate
-    'intake-q29', // reviewUrgency
   ];
 
   for (const id of alwaysVisible) {
     visible.add(id);
+  }
+
+  // Section C — hidden ONLY when the user opted into fast-track AND is still eligible.
+  // If they previously opted in but later changed earlier answers to make the case
+  // non-trivial, section C reappears so the governance team gets the full picture.
+  const fastTrackActive = state.fastTrackOptIn === true && isFastTrackEligible(state);
+  if (!fastTrackActive) {
+    const sectionCQuestions = [
+      'intake-q22', // strategicPriority
+      'intake-q23', // targetPocQuarter
+      'intake-q24', // targetProductionQuarter
+      'intake-q25', // valueDescription
+      'intake-q26', // valueCreationLevers
+      'intake-q27', // reflectedInBudget
+      'intake-q28', // valueEstimate
+      'intake-q29', // reviewUrgency
+    ];
+    for (const id of sectionCQuestions) {
+      visible.add(id);
+    }
   }
 
   // Q9a, Q9b: Vendor sub-fields — show when thirdPartyInvolved = "yes"
@@ -140,11 +210,16 @@ export function getVisibleIntakeStages(state: IntakeFormState): string[] {
     review: [],
   };
 
+  const fastTrackActive = state.fastTrackOptIn === true && isFastTrackEligible(state);
+
   return Object.entries(stageQuestionMap)
-    .filter(
-      ([stageId, questionIds]) =>
-        stageId === 'review' || questionIds.some((id) => visibleQuestions.has(id)),
-    )
+    .filter(([stageId, questionIds]) => {
+      // Review is always shown
+      if (stageId === 'review') return true;
+      // Section C is hidden when the user opts into fast-track AND is still eligible
+      if (stageId === 'section-c' && fastTrackActive) return false;
+      return questionIds.some((id) => visibleQuestions.has(id));
+    })
     .map(([stageId]) => stageId);
 }
 
@@ -184,6 +259,17 @@ export function getInlineBanners(state: IntakeFormState): InlineBanner[] {
       afterQuestionId: 'intake-q13',
       message:
         "Because this system is already in production and hasn't been reviewed, this submission will be prioritized for assessment.",
+    });
+  }
+
+  // Shadow AI: already-in-use submissions get an informational, non-stigmatizing banner
+  if (state.lifecycleStage === 'in_use_seeking_approval') {
+    banners.push({
+      id: 'shadow-ai-informal-use',
+      severity: 'info',
+      afterQuestionId: 'intake-q12',
+      message:
+        'Thanks for registering this. Cases already in informal use are reviewed quickly to bring them into governance — there is no penalty for prior use.',
     });
   }
 

@@ -73,12 +73,27 @@ export const useWizardStore = create<WizardState>()(
     }),
     {
       name: 'ai-governance-intake-wizard',
+      version: 2,
       partialize: (state) => ({
         formData: state.formData,
         draftId: state.draftId,
         currentStepIndex: state.currentStepIndex,
         lastSavedAt: state.lastSavedAt,
       }),
+      migrate: (persistedState: unknown, fromVersion: number) => {
+        // v1 → v2: aiType changed from string → string[].
+        const state = persistedState as { formData?: Record<string, unknown> } | null;
+        if (!state || !state.formData) return state;
+
+        if (fromVersion < 2 && typeof state.formData.aiType === 'string') {
+          state.formData = {
+            ...state.formData,
+            aiType: [state.formData.aiType],
+          };
+        }
+
+        return state;
+      },
     },
   ),
 );

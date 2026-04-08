@@ -96,13 +96,20 @@ export function getClientConsistencyWarnings(
 
   if (worstOutcome === 'moderate') {
     const hasHighTrigger = triggers.some((t) =>
-      ['insurance_pricing', 'investment_advice', 'credit_lending', 'hiring_workforce'].includes(t),
+      [
+        'insurance_pricing',
+        'investment_advice',
+        'credit_lending',
+        'hiring_workforce',
+        'code_to_production',
+        'security_vulnerability_risk',
+      ].includes(t),
     );
     if (hasHighTrigger) {
       warnings.push({
         id: 'outcome-mismatch-trigger',
         message:
-          'You selected a high-risk decision trigger but set impact to "wrong information." Systems that influence financial or employment decisions typically have at least "financial harm" level impact. Please review.',
+          'You selected a high-risk trigger but set impact to "wrong information." Systems that influence financial decisions, generate production code, or could create security vulnerabilities typically have at least "significant impact" level risk. Please review.',
       });
     }
   }

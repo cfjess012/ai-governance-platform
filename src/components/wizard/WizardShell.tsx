@@ -9,6 +9,7 @@ import {
   getVisibleIntakeStages,
 } from '@/lib/questions/branching-rules';
 import { intakeSchema } from '@/lib/questions/intake-schema';
+import { calculateInherentRisk } from '@/lib/risk/inherent-risk';
 import { useAiStore } from '@/lib/store/ai-store';
 import { useInventoryStore } from '@/lib/store/inventory-store';
 import { useWizardStore } from '@/lib/store/wizard-store';
@@ -197,10 +198,26 @@ export function WizardShell() {
     const errors = validateStage(currentStage.id, formData, visibleQuestionIds);
     if (Object.keys(errors).length > 0) {
       setStageErrors(errors);
-      const firstErrorField = Object.keys(errors)[0];
+      // Find the first error in FORM ORDER (not object key order)
+      const stageQuestionsInOrder = intakeQuestions.filter(
+        (q) => q.stage === currentStage.id && visibleQuestionIds.has(q.id),
+      );
+      const firstErrorField = stageQuestionsInOrder.find((q) => errors[q.field])?.field;
       if (firstErrorField) {
-        const el = document.getElementById(firstErrorField);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Defer to next frame so error UI renders first
+        requestAnimationFrame(() => {
+          const el = document.getElementById(firstErrorField);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Focus the input if it's focusable; for fieldsets, focus the first input inside
+            if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+              (el as HTMLInputElement).focus({ preventScroll: true });
+            } else {
+              const firstInput = el.querySelector<HTMLElement>('input, select, textarea, button');
+              firstInput?.focus({ preventScroll: true });
+            }
+          }
+        });
       }
       return;
     }
@@ -256,10 +273,14 @@ export function WizardShell() {
       const result = await response.json();
       if (result.data) {
         const now = new Date().toISOString();
+        // Compute inherent risk from the validated intake answers.
+        // This is the preliminary 5-tier risk classification used for triage routing.
+        const inherentRisk = calculateInherentRisk(result.data.intake);
         addUseCase({
           id: result.data.id,
           intake: result.data.intake,
           classification: result.data.classification,
+          inherentRisk,
           status: 'submitted',
           timeline: [{ status: 'submitted', timestamp: now, changedBy: 'mock-user@example.com' }],
           comments: [],
@@ -319,7 +340,7 @@ export function WizardShell() {
                   <p className="text-xs text-slate-500">
                     {isTimeSensitive
                       ? 'Your submission is flagged as time-sensitive and will be prioritized. Expect initial review within 2\u20133 business days.'
-                      : 'The ERAI governance team will review your submission within 3\u20135 business days.'}
+                      : 'The governance team will review your submission within 3\u20135 business days.'}
                   </p>
                 </div>
               </li>
@@ -414,7 +435,7 @@ export function WizardShell() {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 h-full overflow-hidden">
         {/* ── Middle sidebar ── */}
         <aside className="w-[220px] shrink-0 border-r border-slate-200 bg-white flex flex-col overflow-y-auto">
           {/* Title */}

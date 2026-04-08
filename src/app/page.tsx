@@ -17,10 +17,10 @@ export default function Home() {
             Start New Intake
           </Link>
           <Link
-            href="/dashboard"
+            href="/inventory"
             className="inline-flex items-center justify-center rounded-md border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            View Dashboard
+            View Inventory
           </Link>
         </div>
       </div>

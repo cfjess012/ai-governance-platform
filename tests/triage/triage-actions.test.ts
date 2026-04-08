@@ -33,7 +33,7 @@ function makeUseCase(overrides: Partial<AIUseCase> = {}): AIUseCase {
 
 function validDecision(overrides: Partial<TriageDecisionInput> = {}): TriageDecisionInput {
   return {
-    confirmedRiskTier: 'medium',
+    confirmedInherentTier: 'medium',
     riskTierOverridden: false,
     governancePath: 'standard',
     assignedReviewer: 'reviewer@test.com',
@@ -62,16 +62,20 @@ describe('Triage Actions', () => {
       expect(recommendGovernancePath('low')).toBe('lightweight');
     });
 
+    it('recommends lightweight for medium-low risk', () => {
+      expect(recommendGovernancePath('medium_low')).toBe('lightweight');
+    });
+
     it('recommends standard for medium risk', () => {
       expect(recommendGovernancePath('medium')).toBe('standard');
     });
 
-    it('recommends full for high risk', () => {
-      expect(recommendGovernancePath('high')).toBe('full');
+    it('recommends standard for medium-high risk', () => {
+      expect(recommendGovernancePath('medium_high')).toBe('standard');
     });
 
-    it('recommends full for critical risk', () => {
-      expect(recommendGovernancePath('critical')).toBe('full');
+    it('recommends full for high risk', () => {
+      expect(recommendGovernancePath('high')).toBe('full');
     });
   });
 
@@ -111,7 +115,7 @@ describe('Triage Actions', () => {
 
     it('returns multiple errors at once', () => {
       const errors = validateTriageDecision({
-        confirmedRiskTier: 'low',
+        confirmedInherentTier: 'low',
         riskTierOverridden: true,
         governancePath: 'lightweight',
         assignedReviewer: '',
@@ -126,7 +130,7 @@ describe('Triage Actions', () => {
       const useCase = makeUseCase();
       const result = applyTriageDecision(useCase, validDecision(), 'gov@test.com');
       expect(result.triage).toBeDefined();
-      expect(result.triage?.confirmedRiskTier).toBe('medium');
+      expect(result.triage?.confirmedInherentTier).toBe('medium');
       expect(result.triage?.governancePath).toBe('standard');
       expect(result.triage?.assignedReviewer).toBe('reviewer@test.com');
       expect(result.triage?.triagedBy).toBe('gov@test.com');
@@ -165,7 +169,7 @@ describe('Triage Actions', () => {
       expect(result.timeline[1].changedBy).toBe('gov@test.com');
     });
 
-    it('updates the official risk tier to the confirmed value', () => {
+    it('records confirmed inherent tier on the triage object', () => {
       const useCase = makeUseCase({
         classification: {
           euAiActTier: 'pending',
@@ -177,13 +181,13 @@ describe('Triage Actions', () => {
       const result = applyTriageDecision(
         useCase,
         validDecision({
-          confirmedRiskTier: 'high',
+          confirmedInherentTier: 'high',
           riskTierOverridden: true,
           overrideReason: 'Reviewer found additional risks',
         }),
         'gov@test.com',
       );
-      expect(result.classification.riskTier).toBe('high');
+      expect(result.triage?.confirmedInherentTier).toBe('high');
       expect(result.triage?.riskTierOverridden).toBe(true);
       expect(result.triage?.overrideReason).toBe('Reviewer found additional risks');
     });
@@ -262,7 +266,7 @@ describe('Triage Actions', () => {
       expect(recommendedPath).toBe('lightweight');
 
       const decision = validDecision({
-        confirmedRiskTier: 'low',
+        confirmedInherentTier: 'low',
         governancePath: recommendedPath,
       });
 
@@ -286,7 +290,7 @@ describe('Triage Actions', () => {
       });
 
       const decision = validDecision({
-        confirmedRiskTier: 'high',
+        confirmedInherentTier: 'high',
         riskTierOverridden: true,
         overrideReason: 'Use case has external customer impact not captured at intake',
         governancePath: 'full',
@@ -296,7 +300,7 @@ describe('Triage Actions', () => {
       expect(errors).toEqual([]);
 
       const result = applyTriageDecision(useCase, decision, 'gov@test.com');
-      expect(result.classification.riskTier).toBe('high');
+      expect(result.triage?.confirmedInherentTier).toBe('high');
       expect(result.triage?.riskTierOverridden).toBe(true);
       expect(result.status).toBe('assessment_required');
     });

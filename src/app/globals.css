@@ -121,3 +121,23 @@ textarea {
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+@keyframes pulseOnce {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    background-color: rgba(59, 130, 246, 0.04);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0);
+    background-color: rgba(59, 130, 246, 0.04);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    background-color: transparent;
+  }
+}
+
+.animate-pulse-once {
+  animation: pulseOnce 1.5s ease-out;
+  border-radius: 8px;
+}

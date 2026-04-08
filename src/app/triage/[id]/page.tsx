@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { use, useMemo, useState } from 'react';
 import { intakeQuestions } from '@/config/questions';
-import type { RiskTier } from '@/lib/classification/seven-dimension-scoring';
+import { calculateInherentRisk } from '@/lib/risk/inherent-risk';
+import { type InherentRiskTier, TIER_DISPLAY } from '@/lib/risk/types';
 import { useInventoryStore } from '@/lib/store/inventory-store';
 import {
   caseAgeInDays,
@@ -13,13 +14,7 @@ import {
 } from '@/lib/triage/triage-actions';
 import type { GovernancePath } from '@/types/inventory';
 
-const riskTierColors: Record<string, string> = {
-  low: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  medium: 'bg-amber-50 text-amber-700 border-amber-200',
-  high: 'bg-orange-50 text-orange-700 border-orange-200',
-  critical: 'bg-red-50 text-red-700 border-red-200',
-  pending: 'bg-slate-50 text-slate-600 border-slate-200',
-};
+const ALL_TIERS: InherentRiskTier[] = ['low', 'medium_low', 'medium', 'medium_high', 'high'];
 
 const pathDescriptions: Record<
   GovernancePath,
@@ -90,42 +85,43 @@ export default function TriageDecisionPage({ params }: { params: Promise<{ id: s
   const useCase = useInventoryStore((s) => s.useCases.find((uc) => uc.id === id));
   const applyTriage = useInventoryStore((s) => s.applyTriage);
 
-  const initialTier: RiskTier =
-    useCase?.classification.riskTier !== 'pending'
-      ? (useCase?.classification.riskTier as RiskTier)
-      : 'medium';
+  // The case's stored inherentRisk OR a fresh computation if missing (defensive backfill)
+  const inherentRisk = useMemo(() => {
+    if (!useCase) return null;
+    if (useCase.inherentRisk) return useCase.inherentRisk;
+    return calculateInherentRisk(useCase.intake);
+  }, [useCase]);
 
-  const [confirmedRiskTier, setConfirmedRiskTier] = useState<RiskTier>(initialTier);
+  const autoCalculatedTier: InherentRiskTier = inherentRisk?.tier ?? 'medium';
+
+  const [confirmedTier, setConfirmedTier] = useState<InherentRiskTier>(autoCalculatedTier);
   const [governancePath, setGovernancePath] = useState<GovernancePath>(
-    recommendGovernancePath(initialTier),
+    recommendGovernancePath(autoCalculatedTier),
   );
   const [assignedReviewer, setAssignedReviewer] = useState('');
   const [overrideReason, setOverrideReason] = useState('');
   const [triageNotes, setTriageNotes] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
 
-  const originalTier = useCase?.classification.riskTier;
-  const riskTierOverridden = originalTier !== 'pending' && confirmedRiskTier !== originalTier;
+  const riskTierOverridden = confirmedTier !== autoCalculatedTier;
 
   const ageInDays = useMemo(() => (useCase ? caseAgeInDays(useCase) : 0), [useCase]);
 
   if (!useCase) {
     return (
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-6 py-16 text-center">
-          <h1 className="text-xl font-semibold text-slate-900 mb-2">Use case not found</h1>
-          <p className="text-sm text-slate-500 mb-4">No use case with ID &quot;{id}&quot;.</p>
-          <Link href="/triage" className="text-sm text-blue-600 hover:underline">
-            &larr; Back to triage queue
-          </Link>
-        </div>
-      </main>
+      <div className="max-w-4xl mx-auto px-6 py-16 text-center">
+        <h1 className="text-xl font-semibold text-slate-900 mb-2">Use case not found</h1>
+        <p className="text-sm text-slate-500 mb-4">No use case with ID &quot;{id}&quot;.</p>
+        <Link href="/triage" className="text-sm text-blue-600 hover:underline">
+          &larr; Back to triage queue
+        </Link>
+      </div>
     );
   }
 
   const handleSubmit = () => {
     const decision = {
-      confirmedRiskTier,
+      confirmedInherentTier: confirmedTier,
       riskTierOverridden,
       overrideReason: riskTierOverridden ? overrideReason : undefined,
       governancePath,
@@ -142,250 +138,329 @@ export default function TriageDecisionPage({ params }: { params: Promise<{ id: s
   };
 
   return (
-    <main className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        {/* Breadcrumbs */}
-        <div className="mb-2 flex items-center gap-2 text-xs text-slate-400">
-          <Link href="/triage" className="hover:text-blue-600 transition-colors">
-            Triage Queue
-          </Link>
-          <span>/</span>
-          <span className="text-slate-600">{useCase.intake.useCaseName}</span>
+    <div className="max-w-5xl mx-auto px-6 py-8">
+      {/* Breadcrumbs */}
+      <div className="mb-2 flex items-center gap-2 text-xs text-slate-400">
+        <Link href="/triage" className="hover:text-blue-600 transition-colors">
+          Triage Queue
+        </Link>
+        <span>/</span>
+        <span className="text-slate-600">{useCase.intake.useCaseName}</span>
+      </div>
+
+      {/* Header */}
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            {useCase.intake.useCaseName}
+          </h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Submitted by {useCase.submittedBy} · {ageInDays} day{ageInDays === 1 ? '' : 's'} ago ·{' '}
+            {useCase.intake.businessArea}
+          </p>
+        </div>
+      </div>
+
+      {/* ── Auto-calculated inherent risk panel ── */}
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-slate-700">Auto-Calculated Inherent Risk</h2>
+          <span className="text-xs text-slate-400">Computed from intake answers</span>
         </div>
 
-        {/* Header */}
-        <div className="mb-6 flex items-start justify-between gap-4">
+        {/* Tier + EU AI Act + Lifecycle */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              {useCase.intake.useCaseName}
-            </h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Submitted by {useCase.submittedBy} · {ageInDays} day{ageInDays === 1 ? '' : 's'} ago ·{' '}
-              {useCase.intake.businessArea}
+            <p className="text-xs text-slate-400 mb-1">Inherent tier</p>
+            {inherentRisk ? (
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${inherentRisk.tierDisplay.badgeClasses}`}
+              >
+                {inherentRisk.tierDisplay.label}
+              </span>
+            ) : (
+              <span className="text-xs text-slate-400">Pending</span>
+            )}
+          </div>
+          <div>
+            <p className="text-xs text-slate-400 mb-1">EU AI Act</p>
+            <p className="text-sm font-medium text-slate-700">
+              {useCase.classification.euAiActTier}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-400 mb-1">Lifecycle</p>
+            <p className="text-sm font-medium text-slate-700">
+              {useCase.intake.lifecycleStage?.replace(/_/g, ' ')}
             </p>
           </div>
         </div>
 
-        {/* Auto-classification banner */}
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-700">Preliminary Classification</h2>
-            <span className="text-xs text-slate-400">Auto-generated from intake</span>
+        {/* Tier description */}
+        {inherentRisk && (
+          <div className="mb-4">
+            <p className="text-xs text-slate-500 leading-relaxed">
+              {inherentRisk.tierDisplay.description}
+            </p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div>
-              <p className="text-xs text-slate-400 mb-1">Risk tier</p>
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${riskTierColors[useCase.classification.riskTier]}`}
-              >
-                {useCase.classification.riskTier === 'pending'
-                  ? 'Pending'
-                  : useCase.classification.riskTier.charAt(0).toUpperCase() +
-                    useCase.classification.riskTier.slice(1)}
-              </span>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 mb-1">EU AI Act</p>
-              <p className="text-sm font-medium text-slate-700">
-                {useCase.classification.euAiActTier}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 mb-1">Lifecycle</p>
-              <p className="text-sm font-medium text-slate-700">
-                {useCase.intake.lifecycleStage?.replace(/_/g, ' ')}
-              </p>
-            </div>
+        )}
+
+        {/* Fired regulatory rules */}
+        {inherentRisk && inherentRisk.firedRules.length > 0 && (
+          <div className="mb-4 pt-3 border-t border-slate-100">
+            <p className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-2">
+              Regulatory Rules Fired ({inherentRisk.firedRules.length})
+            </p>
+            <ul className="space-y-2">
+              {inherentRisk.firedRules.map((rule) => (
+                <li key={rule.id} className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-red-400" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-slate-700">{rule.name}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{rule.reason}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 italic">
+                      {rule.citation.framework} — {rule.citation.reference}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
-          {useCase.classification.explanation.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-slate-100">
-              <p className="text-xs text-slate-400 mb-1.5">Triggering factors:</p>
-              <ul className="space-y-0.5">
-                {useCase.classification.explanation.map((e) => (
-                  <li key={e} className="text-xs text-slate-600 flex items-start gap-1.5">
+        )}
+
+        {/* Fired confluence patterns */}
+        {inherentRisk && inherentRisk.firedPatterns.length > 0 && (
+          <div className="mb-4 pt-3 border-t border-slate-100">
+            <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-2">
+              Risk Patterns Detected ({inherentRisk.firedPatterns.length})
+            </p>
+            <ul className="space-y-2">
+              {inherentRisk.firedPatterns.map((pattern) => (
+                <li key={pattern.id} className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-amber-400" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-slate-700">{pattern.name}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                      {pattern.description}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Top contributors (when no rules/patterns) */}
+        {inherentRisk &&
+          inherentRisk.firedRules.length === 0 &&
+          inherentRisk.firedPatterns.length === 0 &&
+          inherentRisk.topContributors.length > 0 && (
+            <div className="mb-4 pt-3 border-t border-slate-100">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                Top Risk Factors
+              </p>
+              <ul className="space-y-1">
+                {inherentRisk.topContributors.map((c) => (
+                  <li
+                    key={`${c.source}-${c.label}`}
+                    className="text-xs text-slate-600 flex items-start gap-1.5"
+                  >
                     <span className="text-slate-300 mt-px">&bull;</span>
-                    {e}
+                    {c.label}
                   </li>
                 ))}
               </ul>
             </div>
           )}
+
+        {/* Applicable frameworks (collapsed by default — handled in sidebar; here just count) */}
+        {inherentRisk && inherentRisk.applicableFrameworks.length > 0 && (
+          <div className="pt-3 border-t border-slate-100">
+            <p className="text-xs text-slate-400">
+              <strong className="text-slate-600">
+                {inherentRisk.applicableFrameworks.length} regulatory framework
+                {inherentRisk.applicableFrameworks.length === 1 ? '' : 's'} apply:
+              </strong>{' '}
+              {inherentRisk.applicableFrameworks.map((f) => f.framework).join(', ')}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Intake summary (left, 2 cols) */}
+        <div className="lg:col-span-2">
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
+              <h2 className="text-sm font-semibold text-slate-700">Intake Summary</h2>
+            </div>
+            <dl className="divide-y divide-slate-100">
+              {KEY_INTAKE_FIELDS.map((fieldName) => {
+                const q = intakeQuestions.find((q) => q.field === fieldName);
+                if (!q) return null;
+                const val = (useCase.intake as Record<string, unknown>)[fieldName];
+                if (val === undefined || val === '') return null;
+                return (
+                  <div key={fieldName} className="px-5 py-2.5">
+                    <dt className="text-xs text-slate-400">{q.label}</dt>
+                    <dd className="text-sm text-slate-700 mt-0.5">
+                      {formatFieldValue(val, fieldName)}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Intake summary (left, 2 cols) */}
-          <div className="lg:col-span-2">
-            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-              <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
-                <h2 className="text-sm font-semibold text-slate-700">Intake Summary</h2>
-              </div>
-              <dl className="divide-y divide-slate-100">
-                {KEY_INTAKE_FIELDS.map((fieldName) => {
-                  const q = intakeQuestions.find((q) => q.field === fieldName);
-                  if (!q) return null;
-                  const val = (useCase.intake as Record<string, unknown>)[fieldName];
-                  if (val === undefined || val === '') return null;
-                  return (
-                    <div key={fieldName} className="px-5 py-2.5">
-                      <dt className="text-xs text-slate-400">{q.label}</dt>
-                      <dd className="text-sm text-slate-700 mt-0.5">
-                        {formatFieldValue(val, fieldName)}
-                      </dd>
-                    </div>
-                  );
-                })}
-              </dl>
-            </div>
-          </div>
+        {/* Triage decision form (right, 1 col) */}
+        <div className="space-y-4">
+          <div className="rounded-xl border border-blue-200 bg-blue-50/30 p-5">
+            <h2 className="text-sm font-semibold text-slate-900 mb-4">Triage Decision</h2>
 
-          {/* Triage decision form (right, 1 col) */}
-          <div className="space-y-4">
-            <div className="rounded-xl border border-blue-200 bg-blue-50/30 p-5">
-              <h2 className="text-sm font-semibold text-slate-900 mb-4">Triage Decision</h2>
-
-              {/* Confirmed risk tier */}
-              <div className="mb-4">
-                <label
-                  htmlFor="confirmed-risk-tier"
-                  className="block text-xs font-medium text-slate-600 mb-1.5"
-                >
-                  Confirmed risk tier
-                </label>
-                <select
-                  id="confirmed-risk-tier"
-                  value={confirmedRiskTier}
-                  onChange={(e) => {
-                    const tier = e.target.value as RiskTier;
-                    setConfirmedRiskTier(tier);
-                    setGovernancePath(recommendGovernancePath(tier));
-                  }}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
-                {riskTierOverridden && (
-                  <p className="text-xs text-amber-700 mt-1">
-                    Overriding auto-classification ({originalTier})
-                  </p>
-                )}
-              </div>
-
-              {/* Override reason */}
+            {/* Confirmed inherent tier */}
+            <div className="mb-4">
+              <label
+                htmlFor="confirmed-tier"
+                className="block text-xs font-medium text-slate-600 mb-1.5"
+              >
+                Confirmed inherent tier
+              </label>
+              <select
+                id="confirmed-tier"
+                value={confirmedTier}
+                onChange={(e) => {
+                  const tier = e.target.value as InherentRiskTier;
+                  setConfirmedTier(tier);
+                  setGovernancePath(recommendGovernancePath(tier));
+                }}
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {ALL_TIERS.map((tier) => (
+                  <option key={tier} value={tier}>
+                    {TIER_DISPLAY[tier].label}
+                  </option>
+                ))}
+              </select>
               {riskTierOverridden && (
-                <div className="mb-4">
-                  <label
-                    htmlFor="override-reason"
-                    className="block text-xs font-medium text-slate-600 mb-1.5"
-                  >
-                    Reason for override <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    id="override-reason"
-                    value={overrideReason}
-                    onChange={(e) => setOverrideReason(e.target.value)}
-                    rows={2}
-                    placeholder="Explain why you're overriding the auto-classification..."
-                    className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                <p className="text-xs text-amber-700 mt-1">
+                  Overriding auto-calculated tier ({TIER_DISPLAY[autoCalculatedTier].label})
+                </p>
               )}
+            </div>
 
-              {/* Governance path */}
-              <fieldset className="mb-4">
-                <legend className="block text-xs font-medium text-slate-600 mb-1.5">
-                  Governance path
-                </legend>
-                <div className="space-y-2">
-                  {(['lightweight', 'standard', 'full'] as GovernancePath[]).map((p) => {
-                    const cfg = pathDescriptions[p];
-                    const isSelected = governancePath === p;
-                    return (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setGovernancePath(p)}
-                        className={`w-full text-left p-2.5 rounded-md border transition-colors ${
-                          isSelected
-                            ? 'border-blue-400 bg-white'
-                            : 'border-slate-200 bg-white/50 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-xs font-semibold text-slate-900">{cfg.title}</span>
-                          <span className="text-[10px] text-slate-400">{cfg.sla}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 leading-snug">{cfg.desc}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-
-              {/* Assigned reviewer */}
+            {/* Override reason */}
+            {riskTierOverridden && (
               <div className="mb-4">
                 <label
-                  htmlFor="assigned-reviewer"
+                  htmlFor="override-reason"
                   className="block text-xs font-medium text-slate-600 mb-1.5"
                 >
-                  Assigned reviewer <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="assigned-reviewer"
-                  type="text"
-                  value={assignedReviewer}
-                  onChange={(e) => setAssignedReviewer(e.target.value)}
-                  placeholder="reviewer@example.com"
-                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Triage notes */}
-              <div className="mb-4">
-                <label
-                  htmlFor="triage-notes"
-                  className="block text-xs font-medium text-slate-600 mb-1.5"
-                >
-                  Triage notes <span className="text-red-500">*</span>
+                  Reason for override <span className="text-red-500">*</span>
                 </label>
                 <textarea
-                  id="triage-notes"
-                  value={triageNotes}
-                  onChange={(e) => setTriageNotes(e.target.value)}
-                  rows={4}
-                  placeholder="Summarize your triage decision and any concerns the reviewer should know about..."
+                  id="override-reason"
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  rows={2}
+                  placeholder="Explain why you're overriding the auto-classification..."
                   className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Visible to the assigned reviewer and the business user.
-                </p>
               </div>
+            )}
 
-              {errors.length > 0 && (
-                <div className="mb-4 p-2.5 rounded-md border border-red-200 bg-red-50">
-                  <ul className="space-y-0.5">
-                    {errors.map((e) => (
-                      <li key={e} className="text-xs text-red-700">
-                        &bull; {e}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            {/* Governance path */}
+            <fieldset className="mb-4">
+              <legend className="block text-xs font-medium text-slate-600 mb-1.5">
+                Governance path
+              </legend>
+              <div className="space-y-2">
+                {(['lightweight', 'standard', 'full'] as GovernancePath[]).map((p) => {
+                  const cfg = pathDescriptions[p];
+                  const isSelected = governancePath === p;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setGovernancePath(p)}
+                      className={`w-full text-left p-2.5 rounded-md border transition-colors ${
+                        isSelected
+                          ? 'border-blue-400 bg-white'
+                          : 'border-slate-200 bg-white/50 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs font-semibold text-slate-900">{cfg.title}</span>
+                        <span className="text-[10px] text-slate-400">{cfg.sla}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-snug">{cfg.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
 
-              <button
-                type="button"
-                onClick={handleSubmit}
-                className="w-full px-4 py-2 text-sm font-medium bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+            {/* Assigned reviewer */}
+            <div className="mb-4">
+              <label
+                htmlFor="assigned-reviewer"
+                className="block text-xs font-medium text-slate-600 mb-1.5"
               >
-                Submit Triage Decision
-              </button>
+                Assigned reviewer <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="assigned-reviewer"
+                type="text"
+                value={assignedReviewer}
+                onChange={(e) => setAssignedReviewer(e.target.value)}
+                placeholder="reviewer@example.com"
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
+
+            {/* Triage notes */}
+            <div className="mb-4">
+              <label
+                htmlFor="triage-notes"
+                className="block text-xs font-medium text-slate-600 mb-1.5"
+              >
+                Triage notes <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="triage-notes"
+                value={triageNotes}
+                onChange={(e) => setTriageNotes(e.target.value)}
+                rows={4}
+                placeholder="Summarize your triage decision and any concerns the reviewer should know about..."
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Visible to the assigned reviewer and the business user.
+              </p>
+            </div>
+
+            {errors.length > 0 && (
+              <div className="mb-4 p-2.5 rounded-md border border-red-200 bg-red-50">
+                <ul className="space-y-0.5">
+                  {errors.map((e) => (
+                    <li key={e} className="text-xs text-red-700">
+                      &bull; {e}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="w-full px-4 py-2 text-sm font-medium bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+            >
+              Submit Triage Decision
+            </button>
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

@@ -30,18 +30,16 @@ export default function NewModelPage() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Add Model</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Register a new AI model to the governance registry.
-          </p>
-        </div>
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Add Model</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Register a new AI model to the governance registry.
+        </p>
+      </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <ModelForm onSubmit={handleSubmit} submitLabel="Add Model" />
-        </div>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <ModelForm onSubmit={handleSubmit} submitLabel="Add Model" />
       </div>
     </div>
   );

@@ -105,9 +105,9 @@ const PROCESS_STEPS: ProcessStep[] = [
         condition: 'Biometric identification, emotion detection, or social scoring in EU',
         label: 'Potentially Prohibited',
         color: 'red',
-        outcome: 'Escalated to ERAI committee',
+        outcome: 'Escalated to governance committee',
         details:
-          'Use cases involving practices prohibited under EU AI Act Article 5 are escalated immediately. The ERAI committee must approve before any further development.',
+          'Use cases involving practices prohibited under EU AI Act Article 5 are escalated immediately. The governance committee must approve before any further development.',
       },
       {
         id: 'high-risk',
@@ -135,7 +135,7 @@ const PROCESS_STEPS: ProcessStep[] = [
     title: 'Governance Team Review',
     subtitle: 'Typically 3-5 business days',
     description:
-      'The ERAI governance team reviews your intake submission, validates the auto-classification, and determines the appropriate governance path.',
+      'The governance team reviews your intake submission, validates the auto-classification, and determines the appropriate governance path.',
     details: [
       'A governance analyst reviews your answers and the preliminary classification',
       'They may reach out for clarification or additional context',

@@ -8,7 +8,7 @@ export interface IntakeClassificationInput {
   businessProblem?: string;
   howAiHelps?: string;
   businessArea?: string;
-  aiType?: string;
+  aiType?: string[];
   buildOrAcquire?: string;
   highRiskTriggers?: string[];
   deploymentRegions?: string[];

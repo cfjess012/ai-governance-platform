@@ -62,45 +62,35 @@ export default function EditModelPage() {
 
   if (isLoadingModel) {
     return (
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-          <p className="text-sm text-slate-500">Loading model...</p>
-        </div>
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+        <p className="text-sm text-slate-500">Loading model...</p>
       </div>
     );
   }
 
   if (notFound) {
     return (
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-            <p className="text-sm text-red-700">Model not found.</p>
-          </div>
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <p className="text-sm text-red-700">Model not found.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Edit Model</h1>
-          <p className="text-sm text-slate-500 mt-1">Update the model registration details.</p>
-        </div>
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Edit Model</h1>
+        <p className="text-sm text-slate-500 mt-1">Update the model registration details.</p>
+      </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          {model ? (
-            <ModelForm
-              initialData={model.data}
-              onSubmit={handleSubmit}
-              submitLabel="Save Changes"
-            />
-          ) : (
-            <p className="text-sm text-slate-500">Loading...</p>
-          )}
-        </div>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        {model ? (
+          <ModelForm initialData={model.data} onSubmit={handleSubmit} submitLabel="Save Changes" />
+        ) : (
+          <p className="text-sm text-slate-500">Loading...</p>
+        )}
       </div>
     </div>
   );

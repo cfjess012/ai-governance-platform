@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { intakeQuestions } from '@/config/questions';
-import { getInlineBanners } from '@/lib/questions/branching-rules';
+import { getInlineBanners, isFastTrackEligible } from '@/lib/questions/branching-rules';
 import { useAiStore } from '@/lib/store/ai-store';
 import { AiSuggestionsCard } from './AiSuggestionsCard';
 import { AiValueCoachField } from './AiValueCoachField';
@@ -63,6 +63,21 @@ export function WizardStep({
   const isStageB = stepId === 'section-b';
   const isStageC = stepId === 'section-c';
 
+  // ── Fast-track eligibility (only relevant on section-c entry) ──
+  const fastTrackEligible = useMemo(() => isFastTrackEligible(values), [values]);
+  const fastTrackDecided = values.fastTrackOptIn !== undefined;
+  const showFastTrackBanner = isStageC && fastTrackEligible && !fastTrackDecided;
+
+  const handleFastTrackOptIn = useCallback(() => {
+    onFieldChange('fastTrackOptIn', true);
+    // After opting in, the user will end up at section-c briefly until the parent re-renders
+    // and removes section-c from visible stages. They'll auto-advance to review.
+  }, [onFieldChange]);
+
+  const handleFastTrackDecline = useCallback(() => {
+    onFieldChange('fastTrackOptIn', false);
+  }, [onFieldChange]);
+
   // ── AI suggested value levers (suggest-and-confirm, not auto-populate) ──
   const [leverSuggestionDismissed, setLeverSuggestionDismissed] = useState(false);
 
@@ -87,6 +102,45 @@ export function WizardStep({
 
   return (
     <div className="space-y-7">
+      {showFastTrackBanner && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-5 animate-fade-in">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 mt-0.5">
+              <SparkleIcon />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-slate-900 mb-1">
+                Skip Portfolio Alignment?
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed mb-3">
+                Based on your answers, this looks like a low-risk individual productivity use case
+                (third-party SaaS, public data only, internal use, no high-risk triggers). You can
+                skip the Portfolio Alignment section and jump straight to Review &amp; Submit.
+              </p>
+              <p className="text-xs text-slate-500 mb-4">
+                You can always come back and add portfolio details later if needed.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleFastTrackOptIn}
+                  className="px-3 py-1.5 text-xs font-medium bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                >
+                  Yes, skip this section
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFastTrackDecline}
+                  className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
+                >
+                  No, I want to fill it out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {stepQuestions.map((question) => {
         const isVisible = visibleQuestionIds.has(question.id);
         const bannersAfter = bannerMap.get(question.id);

@@ -13,7 +13,7 @@ interface ReviewStepProps {
 
 const sectionToStageIndex: Record<string, number> = {
   'Tell Us About Your AI Use Case': 0,
-  'Additional Details for ERAI': 1,
+  'Risk & Data Details': 1,
   'Portfolio Alignment': 2,
 };
 
@@ -45,6 +45,18 @@ function formatValue(
     return value.join(', ');
   }
   const q = intakeQuestions.find((q) => q.id === questionId);
+
+  // Currency fields: format raw digits as $X,XXX,XXX
+  if (q?.type === 'currency') {
+    const digits = String(value).replace(/[^0-9]/g, '');
+    if (!digits) return '\u2014';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(Number(digits));
+  }
+
   if (q?.options) {
     const opt = q.options.find((o) => o.value === value);
     if (opt) return opt.label;

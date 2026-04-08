@@ -862,130 +862,74 @@ export default function IntakeAuditPage() {
     .filter((cat) => cat.items.length > 0);
 
   return (
-    <main className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-10">
-        {/* Header */}
-        <div className="mb-2 flex items-center gap-2 text-xs text-slate-400">
-          <Link href="/roadmap" className="hover:text-blue-600 transition-colors">
-            Roadmap
-          </Link>
-          <span>/</span>
-          <span className="text-slate-600">Intake Audit</span>
-        </div>
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">
-            Intake Questions Audit Report
-          </h1>
-          <p className="text-sm text-slate-500">
-            Evaluated against EU AI Act, NIST AI RMF, ISO 42001, OECD, Canada AIA, Colorado AI Act,
-            NYC LL144, NAIC, SR 11-7, Singapore MGF, and emerging 2025-2026 requirements.
-          </p>
-        </div>
+    <div className="max-w-5xl mx-auto px-6 py-10">
+      {/* Header */}
+      <div className="mb-2 flex items-center gap-2 text-xs text-slate-400">
+        <Link href="/roadmap" className="hover:text-blue-600 transition-colors">
+          Roadmap
+        </Link>
+        <span>/</span>
+        <span className="text-slate-600">Intake Audit</span>
+      </div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">
+          Intake Questions Audit Report
+        </h1>
+        <p className="text-sm text-slate-500">
+          Evaluated against EU AI Act, NIST AI RMF, ISO 42001, OECD, Canada AIA, Colorado AI Act,
+          NYC LL144, NAIC, SR 11-7, Singapore MGF, and emerging 2025-2026 requirements.
+        </p>
+      </div>
 
-        {/* Executive Summary */}
-        <div className="mb-8 rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="text-sm font-semibold text-slate-700 mb-5">Executive Summary</h2>
-          <div className="flex flex-col sm:flex-row items-start gap-8">
-            <ScoreRing score={scores.coverage} />
-            <div className="flex-1">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
-                <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2.5 text-center">
-                  <p className="text-2xl font-bold text-emerald-700 tabular-nums">
-                    {scores.strong}
-                  </p>
-                  <p className="text-xs text-emerald-600">Strong</p>
-                </div>
-                <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2.5 text-center">
-                  <p className="text-2xl font-bold text-blue-700 tabular-nums">{scores.adequate}</p>
-                  <p className="text-xs text-blue-600">Adequate</p>
-                </div>
-                <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5 text-center">
-                  <p className="text-2xl font-bold text-amber-700 tabular-nums">{scores.gap}</p>
-                  <p className="text-xs text-amber-600">Gaps</p>
-                </div>
-                <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2.5 text-center">
-                  <p className="text-2xl font-bold text-red-700 tabular-nums">{scores.missing}</p>
-                  <p className="text-xs text-red-600">Missing</p>
-                </div>
+      {/* Executive Summary */}
+      <div className="mb-8 rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-sm font-semibold text-slate-700 mb-5">Executive Summary</h2>
+        <div className="flex flex-col sm:flex-row items-start gap-8">
+          <ScoreRing score={scores.coverage} />
+          <div className="flex-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+              <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2.5 text-center">
+                <p className="text-2xl font-bold text-emerald-700 tabular-nums">{scores.strong}</p>
+                <p className="text-xs text-emerald-600">Strong</p>
               </div>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Your intake captures <strong>{scores.strong + scores.adequate}</strong> of{' '}
-                <strong>{scores.total}</strong> fields at strong or adequate levels.{' '}
-                <strong>{scores.gap} gaps</strong> need enhancement and{' '}
-                <strong>{scores.missing} fields</strong> are missing entirely. Strongest areas: risk
-                classification, ownership, and data sensitivity. Biggest gaps: transparency,
-                monitoring, emerging agent governance, and supply chain traceability.
-              </p>
+              <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2.5 text-center">
+                <p className="text-2xl font-bold text-blue-700 tabular-nums">{scores.adequate}</p>
+                <p className="text-xs text-blue-600">Adequate</p>
+              </div>
+              <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5 text-center">
+                <p className="text-2xl font-bold text-amber-700 tabular-nums">{scores.gap}</p>
+                <p className="text-xs text-amber-600">Gaps</p>
+              </div>
+              <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2.5 text-center">
+                <p className="text-2xl font-bold text-red-700 tabular-nums">{scores.missing}</p>
+                <p className="text-xs text-red-600">Missing</p>
+              </div>
             </div>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Your intake captures <strong>{scores.strong + scores.adequate}</strong> of{' '}
+              <strong>{scores.total}</strong> fields at strong or adequate levels.{' '}
+              <strong>{scores.gap} gaps</strong> need enhancement and{' '}
+              <strong>{scores.missing} fields</strong> are missing entirely. Strongest areas: risk
+              classification, ownership, and data sensitivity. Biggest gaps: transparency,
+              monitoring, emerging agent governance, and supply chain traceability.
+            </p>
           </div>
         </div>
+      </div>
 
-        {/* Top Findings */}
-        <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-xl border border-red-200 bg-red-50/50 p-5">
-            <h3 className="text-sm font-semibold text-red-800 mb-3">Critical Missing Fields</h3>
-            <ul className="space-y-2">
-              {auditCategories
-                .flatMap((c) => c.items)
-                .filter((i) => i.rating === 'missing')
-                .slice(0, 6)
-                .map((item) => (
-                  <li key={item.field} className="flex items-start gap-2">
-                    <svg
-                      className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                    <div>
-                      <p className="text-xs font-medium text-red-900">{item.field}</p>
-                      <p className="text-xs text-red-700">
-                        {item.frameworks.slice(0, 2).join(', ')}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-            </ul>
-          </div>
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5">
-            <h3 className="text-sm font-semibold text-emerald-800 mb-3">
-              Above-Industry Strengths
-            </h3>
-            <ul className="space-y-2">
-              {[
-                {
-                  title: 'Real-time EU AI Act auto-classification',
-                  detail: 'Sidebar updates as user types — no competitor does this',
-                },
-                {
-                  title: 'Model registry integration',
-                  detail: 'Q10a pulls from live model registry with metadata',
-                },
-                {
-                  title: 'Honest oversight framing',
-                  detail: '"How things actually work, not on paper" — reduces governance theater',
-                },
-                {
-                  title: 'Affected population scale',
-                  detail: 'Both type AND count captured — enables risk-weighted scoring',
-                },
-                {
-                  title: 'Insurance-specific triggers',
-                  detail: '9 triggers mapped to EU AI Act Annex III and NAIC',
-                },
-                {
-                  title: '"Why we ask" transparency',
-                  detail: 'Every question explains its governance purpose — builds trust',
-                },
-              ].map((s) => (
-                <li key={s.title} className="flex items-start gap-2">
+      {/* Top Findings */}
+      <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="rounded-xl border border-red-200 bg-red-50/50 p-5">
+          <h3 className="text-sm font-semibold text-red-800 mb-3">Critical Missing Fields</h3>
+          <ul className="space-y-2">
+            {auditCategories
+              .flatMap((c) => c.items)
+              .filter((i) => i.rating === 'missing')
+              .slice(0, 6)
+              .map((item) => (
+                <li key={item.field} className="flex items-start gap-2">
                   <svg
-                    className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0"
+                    className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -993,292 +937,340 @@ export default function IntakeAuditPage() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
+                    <path d="M18 6L6 18M6 6l12 12" />
                   </svg>
                   <div>
-                    <p className="text-xs font-medium text-emerald-900">{s.title}</p>
-                    <p className="text-xs text-emerald-700">{s.detail}</p>
+                    <p className="text-xs font-medium text-red-900">{item.field}</p>
+                    <p className="text-xs text-red-700">{item.frameworks.slice(0, 2).join(', ')}</p>
                   </div>
                 </li>
               ))}
-            </ul>
-          </div>
+          </ul>
         </div>
-
-        {/* Filter Tabs */}
-        <div className="mb-4 flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium mr-1">Filter:</span>
-          {(['all', 'strong', 'adequate', 'gap', 'missing'] as const).map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                filter === f
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-              }`}
-            >
-              {f === 'all'
-                ? `All (${scores.total})`
-                : `${f.charAt(0).toUpperCase() + f.slice(1)} (${scores[f as keyof typeof scores]})`}
-            </button>
-          ))}
-        </div>
-
-        {/* Category Detail */}
-        <div className="space-y-3">
-          {filteredCategories.map((cat) => {
-            const isExpanded = expandedCategory === cat.id;
-            return (
-              <div
-                key={cat.id}
-                className="rounded-xl border border-slate-200 bg-white overflow-hidden"
-              >
-                <button
-                  type="button"
-                  onClick={() => setExpandedCategory(isExpanded ? null : cat.id)}
-                  className="w-full flex items-center gap-4 px-5 py-3.5 text-left hover:bg-slate-50/50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-sm font-semibold text-slate-900">{cat.label}</h3>
-                      <span className="text-xs text-slate-400">{cat.items.length} fields</span>
-                    </div>
-                  </div>
-                  <CategoryScore category={cat} />
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-
-                {isExpanded && (
-                  <div className="px-5 pb-4 animate-fade-in">
-                    <div className="border-t border-slate-100 pt-3 space-y-2.5">
-                      {cat.items.map((item) => (
-                        <div
-                          key={item.field}
-                          className={`rounded-lg border p-4 ${ratingConfig[item.rating].bg} ${ratingConfig[item.rating].border}`}
-                        >
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="text-sm font-medium text-slate-900">{item.field}</h4>
-                                <RatingBadge rating={item.rating} />
-                              </div>
-                              {item.currentQuestion && (
-                                <p className="text-xs text-slate-500">
-                                  Currently:{' '}
-                                  <span className="font-medium text-slate-700">
-                                    {item.currentQuestion}
-                                  </span>
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <p className="text-xs text-slate-600 leading-relaxed mb-2">
-                            {item.finding}
-                          </p>
-                          {item.recommendation && (
-                            <div className="bg-white/60 rounded-md px-3 py-2 border border-slate-200/50">
-                              <p className="text-xs text-slate-700">
-                                <span className="font-semibold">Recommendation:</span>{' '}
-                                {item.recommendation}
-                              </p>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                            {item.frameworks.map((f) => (
-                              <span
-                                key={f}
-                                className="inline-flex items-center px-1.5 py-0.5 rounded bg-white/50 text-xs text-slate-500 border border-slate-200/50"
-                              >
-                                {f}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Framework Coverage Matrix */}
-        <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">Framework Coverage Summary</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5">
+          <h3 className="text-sm font-semibold text-emerald-800 mb-3">Above-Industry Strengths</h3>
+          <ul className="space-y-2">
             {[
               {
-                name: 'EU AI Act',
-                coverage: 'Moderate',
-                color: 'amber',
-                note: 'Strong classification; missing Annex VIII registration fields',
+                title: 'Real-time EU AI Act auto-classification',
+                detail: 'Sidebar updates as user types — no competitor does this',
               },
               {
-                name: 'NIST AI RMF',
-                coverage: 'Moderate',
-                color: 'amber',
-                note: 'Good MAP coverage; GOVERN functions partially addressed',
+                title: 'Model registry integration',
+                detail: 'Q10a pulls from live model registry with metadata',
               },
               {
-                name: 'ISO 42001',
-                coverage: 'Moderate',
-                color: 'amber',
-                note: 'Core AI system documentation covered; monitoring gaps',
+                title: 'Honest oversight framing',
+                detail: '"How things actually work, not on paper" — reduces governance theater',
               },
               {
-                name: 'Colorado AI Act',
-                coverage: 'Low',
-                color: 'red',
-                note: 'Missing: training data, bias audit, transparency disclosure',
+                title: 'Affected population scale',
+                detail: 'Both type AND count captured — enables risk-weighted scoring',
               },
               {
-                name: 'NYC LL144',
-                coverage: 'Low',
-                color: 'red',
-                note: 'Missing: user notification, bias audit, explainability',
+                title: 'Insurance-specific triggers',
+                detail: '9 triggers mapped to EU AI Act Annex III and NAIC',
               },
               {
-                name: 'NAIC Bulletin',
-                coverage: 'Moderate',
-                color: 'amber',
-                note: 'Business areas map well; missing actuarial justification',
+                title: '"Why we ask" transparency',
+                detail: 'Every question explains its governance purpose — builds trust',
               },
-              {
-                name: 'SR 11-7',
-                coverage: 'Moderate',
-                color: 'amber',
-                note: 'Ownership strong; missing performance/validation fields',
-              },
-              {
-                name: 'Canada AIA',
-                coverage: 'Moderate',
-                color: 'amber',
-                note: 'Impact assessment well mapped; data provenance missing',
-              },
-              {
-                name: 'Singapore MGF',
-                coverage: 'Low',
-                color: 'red',
-                note: 'Agent governance fields not yet captured',
-              },
-              {
-                name: 'OECD Principles',
-                coverage: 'Moderate',
-                color: 'amber',
-                note: 'Core principles covered; environmental impact missing',
-              },
-              {
-                name: 'Emerging 2025-26',
-                coverage: 'Low',
-                color: 'red',
-                note: 'Agent, supply chain, IP, shadow AI all missing',
-              },
-              {
-                name: 'CFPB / OCC',
-                coverage: 'Low',
-                color: 'red',
-                note: 'Missing adverse action notices, fair lending fields',
-              },
-            ].map((fw) => (
-              <div
-                key={fw.name}
-                className={`rounded-lg border px-3 py-2.5 ${
+            ].map((s) => (
+              <li key={s.title} className="flex items-start gap-2">
+                <svg
+                  className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+                <div>
+                  <p className="text-xs font-medium text-emerald-900">{s.title}</p>
+                  <p className="text-xs text-emerald-700">{s.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="mb-4 flex items-center gap-2">
+        <span className="text-xs text-slate-400 font-medium mr-1">Filter:</span>
+        {(['all', 'strong', 'adequate', 'gap', 'missing'] as const).map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setFilter(f)}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+              filter === f
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+            }`}
+          >
+            {f === 'all'
+              ? `All (${scores.total})`
+              : `${f.charAt(0).toUpperCase() + f.slice(1)} (${scores[f as keyof typeof scores]})`}
+          </button>
+        ))}
+      </div>
+
+      {/* Category Detail */}
+      <div className="space-y-3">
+        {filteredCategories.map((cat) => {
+          const isExpanded = expandedCategory === cat.id;
+          return (
+            <div
+              key={cat.id}
+              className="rounded-xl border border-slate-200 bg-white overflow-hidden"
+            >
+              <button
+                type="button"
+                onClick={() => setExpandedCategory(isExpanded ? null : cat.id)}
+                className="w-full flex items-center gap-4 px-5 py-3.5 text-left hover:bg-slate-50/50 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-sm font-semibold text-slate-900">{cat.label}</h3>
+                    <span className="text-xs text-slate-400">{cat.items.length} fields</span>
+                  </div>
+                </div>
+                <CategoryScore category={cat} />
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {isExpanded && (
+                <div className="px-5 pb-4 animate-fade-in">
+                  <div className="border-t border-slate-100 pt-3 space-y-2.5">
+                    {cat.items.map((item) => (
+                      <div
+                        key={item.field}
+                        className={`rounded-lg border p-4 ${ratingConfig[item.rating].bg} ${ratingConfig[item.rating].border}`}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="text-sm font-medium text-slate-900">{item.field}</h4>
+                              <RatingBadge rating={item.rating} />
+                            </div>
+                            {item.currentQuestion && (
+                              <p className="text-xs text-slate-500">
+                                Currently:{' '}
+                                <span className="font-medium text-slate-700">
+                                  {item.currentQuestion}
+                                </span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-600 leading-relaxed mb-2">
+                          {item.finding}
+                        </p>
+                        {item.recommendation && (
+                          <div className="bg-white/60 rounded-md px-3 py-2 border border-slate-200/50">
+                            <p className="text-xs text-slate-700">
+                              <span className="font-semibold">Recommendation:</span>{' '}
+                              {item.recommendation}
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                          {item.frameworks.map((f) => (
+                            <span
+                              key={f}
+                              className="inline-flex items-center px-1.5 py-0.5 rounded bg-white/50 text-xs text-slate-500 border border-slate-200/50"
+                            >
+                              {f}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Framework Coverage Matrix */}
+      <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-sm font-semibold text-slate-700 mb-4">Framework Coverage Summary</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {[
+            {
+              name: 'EU AI Act',
+              coverage: 'Moderate',
+              color: 'amber',
+              note: 'Strong classification; missing Annex VIII registration fields',
+            },
+            {
+              name: 'NIST AI RMF',
+              coverage: 'Moderate',
+              color: 'amber',
+              note: 'Good MAP coverage; GOVERN functions partially addressed',
+            },
+            {
+              name: 'ISO 42001',
+              coverage: 'Moderate',
+              color: 'amber',
+              note: 'Core AI system documentation covered; monitoring gaps',
+            },
+            {
+              name: 'Colorado AI Act',
+              coverage: 'Low',
+              color: 'red',
+              note: 'Missing: training data, bias audit, transparency disclosure',
+            },
+            {
+              name: 'NYC LL144',
+              coverage: 'Low',
+              color: 'red',
+              note: 'Missing: user notification, bias audit, explainability',
+            },
+            {
+              name: 'NAIC Bulletin',
+              coverage: 'Moderate',
+              color: 'amber',
+              note: 'Business areas map well; missing actuarial justification',
+            },
+            {
+              name: 'SR 11-7',
+              coverage: 'Moderate',
+              color: 'amber',
+              note: 'Ownership strong; missing performance/validation fields',
+            },
+            {
+              name: 'Canada AIA',
+              coverage: 'Moderate',
+              color: 'amber',
+              note: 'Impact assessment well mapped; data provenance missing',
+            },
+            {
+              name: 'Singapore MGF',
+              coverage: 'Low',
+              color: 'red',
+              note: 'Agent governance fields not yet captured',
+            },
+            {
+              name: 'OECD Principles',
+              coverage: 'Moderate',
+              color: 'amber',
+              note: 'Core principles covered; environmental impact missing',
+            },
+            {
+              name: 'Emerging 2025-26',
+              coverage: 'Low',
+              color: 'red',
+              note: 'Agent, supply chain, IP, shadow AI all missing',
+            },
+            {
+              name: 'CFPB / OCC',
+              coverage: 'Low',
+              color: 'red',
+              note: 'Missing adverse action notices, fair lending fields',
+            },
+          ].map((fw) => (
+            <div
+              key={fw.name}
+              className={`rounded-lg border px-3 py-2.5 ${
+                fw.color === 'red'
+                  ? 'bg-red-50 border-red-100'
+                  : fw.color === 'amber'
+                    ? 'bg-amber-50 border-amber-100'
+                    : 'bg-emerald-50 border-emerald-100'
+              }`}
+            >
+              <p
+                className={`text-xs font-semibold ${
                   fw.color === 'red'
-                    ? 'bg-red-50 border-red-100'
+                    ? 'text-red-900'
                     : fw.color === 'amber'
-                      ? 'bg-amber-50 border-amber-100'
-                      : 'bg-emerald-50 border-emerald-100'
+                      ? 'text-amber-900'
+                      : 'text-emerald-900'
                 }`}
               >
-                <p
-                  className={`text-xs font-semibold ${
-                    fw.color === 'red'
-                      ? 'text-red-900'
-                      : fw.color === 'amber'
-                        ? 'text-amber-900'
-                        : 'text-emerald-900'
-                  }`}
-                >
-                  {fw.name}
-                </p>
-                <p
-                  className={`text-xs font-medium ${
-                    fw.color === 'red'
-                      ? 'text-red-700'
-                      : fw.color === 'amber'
-                        ? 'text-amber-700'
-                        : 'text-emerald-700'
-                  }`}
-                >
-                  {fw.coverage}
-                </p>
-                <p
-                  className={`text-xs mt-0.5 ${
-                    fw.color === 'red'
-                      ? 'text-red-600'
-                      : fw.color === 'amber'
-                        ? 'text-amber-600'
-                        : 'text-emerald-600'
-                  }`}
-                >
-                  {fw.note}
-                </p>
-              </div>
-            ))}
-          </div>
+                {fw.name}
+              </p>
+              <p
+                className={`text-xs font-medium ${
+                  fw.color === 'red'
+                    ? 'text-red-700'
+                    : fw.color === 'amber'
+                      ? 'text-amber-700'
+                      : 'text-emerald-700'
+                }`}
+              >
+                {fw.coverage}
+              </p>
+              <p
+                className={`text-xs mt-0.5 ${
+                  fw.color === 'red'
+                    ? 'text-red-600'
+                    : fw.color === 'amber'
+                      ? 'text-amber-600'
+                      : 'text-emerald-600'
+                }`}
+              >
+                {fw.note}
+              </p>
+            </div>
+          ))}
         </div>
+      </div>
 
-        {/* Methodology */}
-        <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50/50 px-6 py-4">
-          <h3 className="text-xs font-semibold text-slate-500 mb-2">Methodology</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-slate-500">
-            <div>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />{' '}
-                <strong className="text-slate-700">Strong</strong>
-              </span>
-              <p>Field fully addresses the requirement with good design</p>
-            </div>
-            <div>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-blue-400" />{' '}
-                <strong className="text-slate-700">Adequate</strong>
-              </span>
-              <p>Partially covered or captures the signal indirectly</p>
-            </div>
-            <div>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-amber-400" />{' '}
-                <strong className="text-slate-700">Gap</strong>
-              </span>
-              <p>Relevant data exists elsewhere but is insufficient at intake</p>
-            </div>
-            <div>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-red-300" />{' '}
-                <strong className="text-slate-700">Missing</strong>
-              </span>
-              <p>No field captures this information anywhere in the intake</p>
-            </div>
+      {/* Methodology */}
+      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50/50 px-6 py-4">
+        <h3 className="text-xs font-semibold text-slate-500 mb-2">Methodology</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-slate-500">
+          <div>
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />{' '}
+              <strong className="text-slate-700">Strong</strong>
+            </span>
+            <p>Field fully addresses the requirement with good design</p>
+          </div>
+          <div>
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-400" />{' '}
+              <strong className="text-slate-700">Adequate</strong>
+            </span>
+            <p>Partially covered or captures the signal indirectly</p>
+          </div>
+          <div>
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />{' '}
+              <strong className="text-slate-700">Gap</strong>
+            </span>
+            <p>Relevant data exists elsewhere but is insufficient at intake</p>
+          </div>
+          <div>
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-300" />{' '}
+              <strong className="text-slate-700">Missing</strong>
+            </span>
+            <p>No field captures this information anywhere in the intake</p>
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
