@@ -106,6 +106,12 @@ function ModelRow({ model, onDelete }: { model: ModelRecord; onDelete: (id: stri
             href={`/models/${model.id}`}
             className="px-2.5 py-1 text-xs font-medium text-slate-600 border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
           >
+            View
+          </Link>
+          <Link
+            href={`/models/${model.id}/edit`}
+            className="px-2.5 py-1 text-xs font-medium text-slate-600 border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
+          >
             Edit
           </Link>
           <button

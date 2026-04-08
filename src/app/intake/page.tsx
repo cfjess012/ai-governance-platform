@@ -1,5 +1,5 @@
-import { WizardShell } from '@/components/wizard/WizardShell';
+import { IntakeMethodChooser } from '@/components/wizard/IntakeMethodChooser';
 
 export default function IntakePage() {
-  return <WizardShell />;
+  return <IntakeMethodChooser />;
 }

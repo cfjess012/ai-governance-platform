@@ -278,6 +278,30 @@ export function ModelForm({ initialData, onSubmit, submitLabel = 'Save Model' }:
           </div>
         </div>
 
+        {/* Hugging Face Model ID (optional) */}
+        <div className="space-y-1">
+          <label htmlFor="huggingFaceModelId" className={labelClasses}>
+            Hugging Face Model ID{' '}
+            <span className="text-slate-400 text-xs font-normal">(optional)</span>
+          </label>
+          <input
+            id="huggingFaceModelId"
+            type="text"
+            value={formData.huggingFaceModelId ?? ''}
+            onChange={(e) => setField('huggingFaceModelId', e.target.value || undefined)}
+            className={errors.huggingFaceModelId ? inputErrorClasses : inputClasses}
+            placeholder="e.g. mistralai/Mistral-7B-v0.3"
+          />
+          {errors.huggingFaceModelId ? (
+            <p className="text-xs text-red-500">{errors.huggingFaceModelId}</p>
+          ) : (
+            <p className="text-xs text-slate-400">
+              Linking to a Hugging Face model enables auto-fetching of metadata, model card, and
+              benchmarks.
+            </p>
+          )}
+        </div>
+
         {/* Description */}
         <div className="space-y-1">
           <label htmlFor="description" className={labelClasses}>

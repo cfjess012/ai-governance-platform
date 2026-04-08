@@ -141,3 +141,174 @@ textarea {
   animation: pulseOnce 1.5s ease-out;
   border-radius: 8px;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Card-flip wizard (/intake/cards)
+ * 3D card flip with front/back faces. The card rotates 180deg around the
+ * Y axis; the back face is hidden until halfway through. Alternating
+ * direction (forward → +180, backward → -180) is applied via the
+ * .card-flip--forward / .card-flip--backward modifiers.
+ * ────────────────────────────────────────────────────────────────────────── */
+.card-scene {
+  perspective: 1600px;
+  perspective-origin: 50% 50%;
+}
+
+.card-3d {
+  position: relative;
+  width: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.6, 0.05, 0.28, 1);
+  will-change: transform;
+}
+
+.card-3d-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+  overflow: auto;
+}
+
+.card-3d-face--front {
+  z-index: 2;
+  transform: rotateY(0deg);
+}
+
+.card-3d-face--back {
+  z-index: 1;
+  transform: rotateY(180deg);
+}
+
+/* Rotation is set inline on .card-3d via React (accumulated in the
+ * direction of travel, e.g. 0 → -180 → -360 → -540). Which physical face
+ * is visible at any moment is determined by backface-visibility: hidden,
+ * and React assigns the correct card's content to each face based on the
+ * parity of the current rotation — so the card truly keeps rotating
+ * naturally across consecutive flips and never snaps back. */
+
+@media (prefers-reduced-motion: reduce) {
+  .card-3d {
+    transition: opacity 0.2s ease;
+    transform: none !important;
+  }
+  .card-3d-face--back {
+    display: none;
+  }
+}
+
+/* Success checkmark draw-in animation (quick register success screen) */
+@keyframes checkDraw {
+  from {
+    stroke-dasharray: 30;
+    stroke-dashoffset: 30;
+  }
+  to {
+    stroke-dasharray: 30;
+    stroke-dashoffset: 0;
+  }
+}
+
+.check-draw {
+  animation: checkDraw 0.55s ease-out 0.1s forwards;
+}
+
+/* Typewriter cursor blink — used by TypewriterText */
+@keyframes cursorBlink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.typewriter-cursor {
+  animation: cursorBlink 1s step-end infinite;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Intake chooser hover previews
+ * Pure-CSS animations that fire only while the user is hovering a method
+ * card (`.group:hover`). They're decorative demos of the underlying UI —
+ * a mini flip for the card-flip intake, and a floating-label gesture for
+ * the single-page form.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/* Card-flip preview: the top card in the deck does a continuous rotateY
+ * flip, showing the back face (a second "question") on every rotation. */
+@keyframes previewCardFlip {
+  0% {
+    transform: rotateY(0deg);
+  }
+  45% {
+    transform: rotateY(-180deg);
+  }
+  55% {
+    transform: rotateY(-180deg);
+  }
+  100% {
+    transform: rotateY(-360deg);
+  }
+}
+
+.preview-card-flipper {
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.group:hover .preview-card-flipper {
+  animation: previewCardFlip 2.4s ease-in-out infinite;
+}
+
+/* Single-page preview: the middle row's label floats up + shrinks, and the
+ * underline bar scales in from the left — the floating-label gesture. */
+@keyframes previewLabelFloat {
+  0%,
+  100% {
+    transform: translateY(0) scaleX(1);
+  }
+  30%,
+  70% {
+    transform: translateY(-2px) scaleX(0.8);
+  }
+}
+
+@keyframes previewUnderlineScale {
+  0%,
+  100% {
+    transform: scaleX(0);
+  }
+  30%,
+  70% {
+    transform: scaleX(1);
+  }
+}
+
+.preview-floating-label {
+  transition: transform 0.3s ease;
+}
+
+.preview-underline-bar {
+  transform: scaleX(1);
+  transition: transform 0.3s ease;
+}
+
+.group:hover .preview-floating-label {
+  animation: previewLabelFloat 2.4s ease-in-out infinite;
+}
+
+.group:hover .preview-underline-bar {
+  animation: previewUnderlineScale 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .preview-card-flipper,
+  .group:hover .preview-floating-label,
+  .group:hover .preview-underline-bar {
+    animation: none;
+  }
+}

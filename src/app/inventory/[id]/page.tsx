@@ -166,9 +166,12 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
             <div>
               <p className="text-xs text-slate-400 mb-0.5">Confirmed inherent tier</p>
               <p className="text-sm font-medium text-slate-700">
-                {useCase.triage.confirmedInherentTier
-                  .replace('_', '-')
-                  .replace(/\b\w/g, (c) => c.toUpperCase())}
+                {(() => {
+                  // Defensive: handle legacy cases where confirmedInherentTier may be missing
+                  const tier = useCase.triage.confirmedInherentTier;
+                  if (!tier) return 'Pending';
+                  return TIER_DISPLAY[tier]?.label ?? tier;
+                })()}
                 {useCase.triage.riskTierOverridden && (
                   <span className="ml-2 text-xs text-amber-700">(overridden)</span>
                 )}
@@ -542,8 +545,14 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ id: 
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-slate-700 mb-3">Timeline</h3>
             <div className="space-y-3">
-              {useCase.timeline.map((change) => (
-                <div key={`${change.status}-${change.timestamp}`} className="flex gap-3 text-xs">
+              {useCase.timeline.map((change, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: timeline is append-only;
+                // multiple entries can share status+timestamp (same-millisecond writes) so the
+                // index is the only stable disambiguator.
+                <div
+                  key={`${i}-${change.status}-${change.timestamp}`}
+                  className="flex gap-3 text-xs"
+                >
                   <div className="w-2 h-2 mt-1 rounded-full bg-[#00539B] flex-shrink-0" />
                   <div>
                     <p className="text-slate-700 font-medium capitalize">

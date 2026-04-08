@@ -20,6 +20,19 @@ export const modelSchema = z.object({
   knownLimitations: z.string().max(2000).optional(),
   dataRetentionPolicy: z.string().max(500).optional(),
   approvedRegions: z.array(z.enum(['us_only', 'eu_eea', 'uk', 'canada', 'other'])).optional(),
+  /**
+   * Optional Hugging Face model ID, e.g., "mistralai/Mistral-7B-v0.3".
+   * When set, the model registry can fetch live metadata, model card, and benchmarks
+   * from the Hugging Face Hub API.
+   */
+  huggingFaceModelId: z
+    .string()
+    .max(200)
+    .regex(/^[a-zA-Z0-9_.-]+(\/[a-zA-Z0-9_.-]+)?$/, {
+      message: 'Must be a valid HF model ID like "org/model-name"',
+    })
+    .optional()
+    .or(z.literal('')),
 });
 
 export const modelDraftSchema = modelSchema.partial();
