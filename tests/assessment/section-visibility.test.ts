@@ -343,13 +343,22 @@ describe('deriveAssessmentValuesFromIntake', () => {
     expect(externalOnly.hasExternalUsers).toBe('yes');
   });
 
-  it('derives usesGenAi from usesFoundationModel', () => {
-    expect(deriveAssessmentValuesFromIntake(intake({ usesFoundationModel: 'yes' })).usesGenAi).toBe(
+  it('derives usesGenAi from aiType (not usesFoundationModel)', () => {
+    // P2 fix: GenAI is derived from aiType, not usesFoundationModel.
+    // A predictive ML system using a vendor foundation model is NOT GenAI.
+    expect(deriveAssessmentValuesFromIntake(intake({ aiType: ['generative_ai'] })).usesGenAi).toBe(
       'yes',
     );
-    expect(deriveAssessmentValuesFromIntake(intake({ usesFoundationModel: 'no' })).usesGenAi).toBe(
-      'no',
-    );
+    expect(deriveAssessmentValuesFromIntake(intake({ aiType: ['rag'] })).usesGenAi).toBe('yes');
+    expect(
+      deriveAssessmentValuesFromIntake(intake({ aiType: ['predictive_classification'] })).usesGenAi,
+    ).toBe('no');
+    // Foundation model alone does NOT imply GenAI
+    expect(
+      deriveAssessmentValuesFromIntake(
+        intake({ usesFoundationModel: 'yes', aiType: ['predictive_classification'] }),
+      ).usesGenAi,
+    ).toBe('no');
   });
 
   it('derives third party fields', () => {
@@ -396,11 +405,12 @@ describe('deriveAssessmentValuesFromIntake', () => {
     ).toBe('no');
   });
 
-  it('copies deployment regions when present', () => {
+  it('maps deployment regions from intake codes to assessment codes', () => {
     const result = deriveAssessmentValuesFromIntake(
       intake({ deploymentRegions: ['us_only', 'eu_eea'] }),
     );
-    expect(result.deploymentRegions).toEqual(['us_only', 'eu_eea']);
+    // P1/P2 fix: eu_eea → eu, us_only → us
+    expect(result.deploymentRegions).toEqual(['us', 'eu']);
   });
 });
 

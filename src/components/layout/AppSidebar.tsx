@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useSessionStore } from '@/lib/store/session-store';
 
 const navItems = [
   {
@@ -148,8 +149,27 @@ const navItems = [
   },
 ];
 
+/** Nav items visible to each role */
+const ROLE_VISIBLE_HREFS: Record<string, Set<string>> = {
+  business_user: new Set(['/', '/inventory', '/roadmap']),
+  governance_analyst: new Set([
+    '/',
+    '/inventory',
+    '/models',
+    '/process',
+    '/triage',
+    '/assessment',
+    '/roadmap',
+  ]),
+};
+
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const user = useSessionStore((s) => s.user);
+  const logout = useSessionStore((s) => s.logout);
+  const role = user?.role ?? 'governance_analyst';
+  const visible = ROLE_VISIBLE_HREFS[role] ?? ROLE_VISIBLE_HREFS.governance_analyst;
 
   return (
     <aside className="app-sidebar">
@@ -216,23 +236,25 @@ export function AppSidebar() {
         </Link>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation — filtered by role */}
       <nav style={{ flex: 1, padding: '0 0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-            return (
-              <Link key={item.href} href={item.href} className="nav-link" data-active={isActive}>
-                {item.icon}
-                {item.label}
-              </Link>
-            );
-          })}
+          {navItems
+            .filter((item) => visible.has(item.href))
+            .map((item) => {
+              const isActive =
+                pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+              return (
+                <Link key={item.href} href={item.href} className="nav-link" data-active={isActive}>
+                  {item.icon}
+                  {item.label}
+                </Link>
+              );
+            })}
         </div>
       </nav>
 
-      {/* Bottom */}
+      {/* Bottom — user identity + logout */}
       <div style={{ padding: '1rem 0.75rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
         <div
           style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0 0.75rem' }}
@@ -242,29 +264,81 @@ export function AppSidebar() {
               width: 28,
               height: 28,
               borderRadius: '50%',
-              backgroundColor: '#334155',
+              backgroundColor: role === 'governance_analyst' ? '#4f46e5' : '#3b82f6',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 11,
-              fontWeight: 500,
-              color: '#cbd5e1',
+              fontWeight: 600,
+              color: '#fff',
             }}
           >
-            N
+            {user?.name
+              ? user.name
+                  .split(' ')
+                  .slice(0, 2)
+                  .map((w) => w[0])
+                  .join('')
+                  .toUpperCase()
+              : '?'}
           </div>
-          <span
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span
+              style={{
+                display: 'block',
+                fontSize: 12,
+                fontWeight: 500,
+                color: '#e2e8f0',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {user?.name ?? 'Not signed in'}
+            </span>
+            <span
+              style={{
+                display: 'block',
+                fontSize: 10,
+                color: '#94a3b8',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {role === 'governance_analyst' ? 'Governance Analyst' : 'Business User'}
+            </span>
+          </div>
+        </div>
+        {user && (
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              router.push('/login');
+            }}
             style={{
-              fontSize: 12,
+              display: 'block',
+              width: '100%',
+              marginTop: 8,
+              padding: '4px 12px',
+              fontSize: 11,
               color: '#94a3b8',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLElement).style.color = '#e2e8f0';
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLElement).style.color = '#94a3b8';
             }}
           >
-            user@company.com
-          </span>
-        </div>
+            Switch role / Sign out
+          </button>
+        )}
       </div>
     </aside>
   );

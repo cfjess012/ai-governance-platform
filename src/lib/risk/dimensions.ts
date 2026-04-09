@@ -6,7 +6,7 @@
  * system, NOT controls or mitigations.
  */
 
-import type { DimensionScore, InherentRiskInput } from './types';
+import type { DimensionScore, InherentRiskInput, ScoreContributor } from './types';
 
 /** Weights for each dimension (must sum to 1.0) */
 export const DIMENSION_WEIGHTS = {
@@ -52,6 +52,7 @@ const MODERATE_DOMAIN_TRIGGERS = new Set([
   'fine_tuning_llm',
   'code_to_production',
   'security_vulnerability_risk',
+  'processes_customer_pii', // P3C: customer PII processing is a moderate risk trigger
 ]);
 
 /** Low-severity triggers (still regulated, but lighter) */
@@ -146,12 +147,31 @@ export function scoreDecisionAuthority(input: InherentRiskInput): DimensionScore
     rationale = `${rationale} Agentic AI adds inherent autonomy risk.`;
   }
 
+  const contributors: ScoreContributor[] = [];
+  if (oversight) {
+    contributors.push({
+      field: 'humanOversight',
+      label: 'Human Oversight',
+      value: oversight,
+      contribution: `Base score ${score} from oversight level`,
+    });
+  }
+  if (isAgent) {
+    contributors.push({
+      field: 'aiType',
+      label: 'AI Type',
+      value: 'ai_agent',
+      contribution: 'Agentic AI adds inherent autonomy risk',
+    });
+  }
+
   return {
     id: 'decision_authority',
     label: 'Decision Authority',
     score,
     weight: DIMENSION_WEIGHTS.decision_authority,
     rationale,
+    contributors,
   };
 }
 
@@ -159,10 +179,42 @@ export function scoreDecisionAuthority(input: InherentRiskInput): DimensionScore
 // Dimension 3: Affected Population (scope, scale, vulnerability)
 // ───────────────────────────────────────────────────────────────────
 
+/**
+ * P3A fix: impact severity modifier.
+ *
+ * Population scale is NOT a linear risk multiplier. A FAQ chatbot serving
+ * 50,000 users should NOT score identically to a system freezing bank
+ * accounts for 50,000 users. The modifier cross-references decision
+ * authority (from humanOversight) and worst-case outcome (from worstOutcome)
+ * to dampen the scale bump for low-authority, high-reversibility cases.
+ *
+ * Formula: scaleBump is applied only when the combined impact severity
+ * (derived from oversight + worst outcome) justifies it. Low-authority +
+ * minor-outcome cases at high scale get NO scale bump — their large user
+ * base doesn't amplify risk because the system doesn't make consequential
+ * decisions.
+ */
+function impactSeverity(input: InherentRiskInput): 'low' | 'medium' | 'high' {
+  const oversight = input.humanOversight;
+  const outcome = input.worstOutcome;
+
+  // High severity: fully autonomous or serious outcomes
+  if (oversight === 'fully_autonomous') return 'high';
+  if (outcome === 'serious') return 'high';
+
+  // Medium severity: spot-check oversight or significant outcome
+  if (oversight === 'spot_check') return 'medium';
+  if (outcome === 'significant') return 'medium';
+
+  // Low severity: human decides/reviews + minor/moderate outcome
+  return 'low';
+}
+
 export function scoreAffectedPopulation(input: InherentRiskInput): DimensionScore {
   const whoAffected = input.whoAffected;
   const peopleCount = input.peopleAffectedCount;
   const differentialTreatment = input.differentialTreatment;
+  const severity = impactSeverity(input);
 
   let score = 0;
   let rationale = 'Affected population not yet specified.';
@@ -189,30 +241,40 @@ export function scoreAffectedPopulation(input: InherentRiskInput): DimensionScor
       break;
   }
 
-  // Scale modifier — high scale amplifies any external exposure
+  // P3A: Scale bump now modulated by impact severity.
+  // High population + low authority + high reversibility → no scale bump.
+  // High population + high authority + low reversibility → full bump.
   let scaleBump = 0;
   let scaleLabel = '';
+  const isLargeScale = peopleCount === '10000_100000' || peopleCount === 'over_100000';
+  const isExternallyFacing = whoAffected !== 'internal_only';
+
   switch (peopleCount) {
     case 'under_100':
-      scaleBump = 0;
       scaleLabel = 'small scale (<100)';
       break;
     case '100_1000':
-      scaleBump = 0;
       scaleLabel = 'modest scale (100-1k)';
       break;
     case '1000_10000':
-      scaleBump = 0;
       scaleLabel = 'significant scale (1k-10k)';
       break;
     case '10000_100000':
-      scaleBump = whoAffected !== 'internal_only' ? 1 : 0;
       scaleLabel = 'large scale (10k-100k)';
       break;
     case 'over_100000':
-      scaleBump = whoAffected !== 'internal_only' ? 1 : 0;
       scaleLabel = 'very large scale (100k+)';
       break;
+  }
+
+  if (isLargeScale && isExternallyFacing) {
+    if (severity === 'high') {
+      scaleBump = 1;
+    } else if (severity === 'medium') {
+      scaleBump = 1;
+    }
+    // severity === 'low' → no bump — large user base alone doesn't increase risk
+    // when the system doesn't make consequential decisions
   }
 
   // Differential treatment is a real risk amplifier (bias potential)
@@ -233,8 +295,38 @@ export function scoreAffectedPopulation(input: InherentRiskInput): DimensionScor
   if (whoAffected) {
     const parts: string[] = [`Affects ${scopeLabel}`];
     if (scaleLabel) parts.push(`at ${scaleLabel}`);
+    if (severity !== 'high' && isLargeScale && isExternallyFacing) {
+      parts.push(`scale dampened by ${severity} impact severity`);
+    }
     if (biasLabel) parts.push(biasLabel);
     rationale = `${parts.join(', ')}.`;
+  }
+
+  const contributors: ScoreContributor[] = [];
+  if (whoAffected) {
+    contributors.push({
+      field: 'whoAffected',
+      label: 'Who is affected',
+      value: whoAffected,
+      contribution: `Base score ${baseScore}`,
+    });
+  }
+  if (peopleCount) {
+    contributors.push({
+      field: 'peopleAffectedCount',
+      label: 'Scale',
+      value: peopleCount,
+      contribution:
+        scaleBump > 0 ? `+${scaleBump} scale bump (${severity} impact severity)` : 'No scale bump',
+    });
+  }
+  if (differentialTreatment && biasBump > 0) {
+    contributors.push({
+      field: 'differentialTreatment',
+      label: 'Differential treatment',
+      value: differentialTreatment,
+      contribution: `+${biasBump} bias risk`,
+    });
   }
 
   return {
@@ -243,6 +335,7 @@ export function scoreAffectedPopulation(input: InherentRiskInput): DimensionScor
     score,
     weight: DIMENSION_WEIGHTS.affected_population,
     rationale,
+    contributors,
   };
 }
 

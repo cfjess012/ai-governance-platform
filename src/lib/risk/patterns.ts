@@ -20,15 +20,49 @@ type Pattern = (input: InherentRiskInput) => FiredPattern | null;
 // ───────────────────────────────────────────────────────────────────
 
 /**
- * GenAI Customer Exposure: Generative AI + customer-facing + sensitive data
- * = hallucination risk meets data leakage risk meets external exposure.
+ * P3B fix: GenAI Customer Exposure is now split into two variants:
+ *
+ * 1. genai_customer_grounded — RAG-based, constrained output, human escalation
+ *    available. Carries a lower weight (does NOT escalate tier).
+ * 2. genai_customer_unconstrained — open-ended generation with no output
+ *    constraints. Full tier escalation.
+ *
+ * The distinction is driven by the `usesGroundedGenAi` intake field. If the
+ * field is missing or not answered, we default to the unconstrained variant
+ * as the conservative assumption.
  */
-const patternGenAiCustomerExposure: Pattern = (input) => {
+const patternGenAiCustomerGrounded: Pattern = (input) => {
   const aiTypes = input.aiType ?? [];
   const dataSensitivity = input.dataSensitivity ?? [];
   const whoAffected = input.whoAffected;
 
-  const hasGenAi = aiTypes.includes('generative_ai') || aiTypes.includes('rag');
+  const hasRag = aiTypes.includes('rag');
+  const hasGenAi = aiTypes.includes('generative_ai');
+  const isGrounded = hasRag && !hasGenAi; // RAG-only without open-ended generative_ai
+  const customerFacing =
+    whoAffected === 'external' || whoAffected === 'both' || whoAffected === 'general_public';
+  const hasSensitiveData = dataSensitivity.some((d) =>
+    ['customer_confidential', 'personal_info', 'health_info', 'regulated_financial'].includes(d),
+  );
+
+  if (!isGrounded || !customerFacing || !hasSensitiveData) return null;
+
+  return {
+    id: 'genai_customer_grounded',
+    name: 'GenAI Customer Exposure (Grounded)',
+    description:
+      'Retrieval-augmented generation with constrained output processing customer data — lower hallucination risk than unconstrained generation but still requires monitoring.',
+    // Does NOT escalate — the grounded variant is inherently lower risk
+    effect: { forceMinimum: 'medium_low' },
+  };
+};
+
+const patternGenAiCustomerUnconstrained: Pattern = (input) => {
+  const aiTypes = input.aiType ?? [];
+  const dataSensitivity = input.dataSensitivity ?? [];
+  const whoAffected = input.whoAffected;
+
+  const hasGenAi = aiTypes.includes('generative_ai');
   const customerFacing =
     whoAffected === 'external' || whoAffected === 'both' || whoAffected === 'general_public';
   const hasSensitiveData = dataSensitivity.some((d) =>
@@ -38,10 +72,10 @@ const patternGenAiCustomerExposure: Pattern = (input) => {
   if (!hasGenAi || !customerFacing || !hasSensitiveData) return null;
 
   return {
-    id: 'genai_customer_exposure',
-    name: 'GenAI Customer Exposure',
+    id: 'genai_customer_unconstrained',
+    name: 'GenAI Customer Exposure (Unconstrained)',
     description:
-      'Generative AI processing customer/sensitive data with external user exposure — hallucination, data leakage, and reputational risk converge.',
+      'Unconstrained generative AI processing customer/sensitive data with external user exposure — hallucination, data leakage, and reputational risk converge.',
     effect: 'escalate_one_tier',
   };
 };
@@ -277,7 +311,8 @@ const patternBiasAmplification: Pattern = (input) => {
 // ───────────────────────────────────────────────────────────────────
 
 const ALL_PATTERNS: Pattern[] = [
-  patternGenAiCustomerExposure,
+  patternGenAiCustomerGrounded,
+  patternGenAiCustomerUnconstrained,
   patternCrossBorderSensitiveData,
   patternBlackBoxVendorConsequential,
   patternVendorManagedExternal,

@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { submitIntake } from '@/lib/intake/submit';
 import type { IntakeFormState } from '@/lib/questions/branching-rules';
-import { intakeSchema } from '@/lib/questions/intake-schema';
 import { useInventoryStore } from '@/lib/store/inventory-store';
+import { useSessionStore } from '@/lib/store/session-store';
 import { useWizardStore } from '@/lib/store/wizard-store';
 import {
   assignFaces,
@@ -49,7 +50,25 @@ export function CardFlipWizard() {
   const resetWizard = useWizardStore((s) => s.reset);
   const isSaving = useWizardStore((s) => s.isSaving);
   const lastSavedAt = useWizardStore((s) => s.lastSavedAt);
+  const sessionId = useWizardStore((s) => s.sessionId);
+  const startFresh = useWizardStore((s) => s.startFresh);
   const addUseCase = useInventoryStore((s) => s.addUseCase);
+  const sessionEmail = useSessionStore((s) => s.user?.email ?? 'unknown@example.com');
+
+  // P2 fix: if there's no active session (stale data from prior completed intake),
+  // start a fresh session. This clears any cross-contaminated form data.
+  // If there IS a sessionId, we're in the middle of a legitimate flow (e.g.,
+  // QuickRegister → CardFlip routing) and keep the pre-filled data.
+  const [freshCleared, setFreshCleared] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: must run once on mount to detect stale sessions
+  useEffect(() => {
+    if (!sessionId && Object.keys(formData).length > 0) {
+      startFresh();
+      setFreshCleared(true);
+      const timer = setTimeout(() => setFreshCleared(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const state = formData as IntakeFormState;
 
@@ -195,37 +214,26 @@ export function CardFlipWizard() {
     setIsSubmitting(true);
     setError(null);
     try {
-      const parsed = intakeSchema.safeParse(formData);
-      if (!parsed.success) {
-        const first = parsed.error.issues[0];
-        const fieldName = String(first?.path[0] ?? '');
+      // Use the unified submitIntake pipeline so the Layer 1 router fires
+      // consistently for every intake flow (Gap 3 fix).
+      const result = submitIntake({
+        formData: formData as Parameters<typeof submitIntake>[0]['formData'],
+        submittedBy: sessionEmail,
+      });
+      if (!result.ok) {
+        const firstField = Object.keys(result.errors)[0] ?? '';
         const targetIndex = deck.findIndex(
-          (c) => c.kind === 'question' && c.question.field === fieldName,
+          (c) => c.kind === 'question' && c.question.field === firstField,
         );
         if (targetIndex !== -1) {
-          setError(`${first.message} — flipping back to fix`);
+          setError(`${result.errors[firstField]} — flipping back to fix`);
           flipTo(targetIndex, 'backward');
         } else {
-          setError(first?.message ?? 'Validation failed');
+          setError(Object.values(result.errors)[0] ?? 'Validation failed');
         }
         return;
       }
-
-      const res = await fetch('/api/intake/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formData: parsed.data }),
-      });
-      if (!res.ok) throw new Error('Submit failed');
-      const json = (await res.json()) as { data?: { useCase?: unknown } };
-      if (json.data?.useCase) {
-        // Best-effort: register locally so the inventory view picks it up.
-        try {
-          addUseCase(json.data.useCase as Parameters<typeof addUseCase>[0]);
-        } catch {
-          /* ignore */
-        }
-      }
+      addUseCase(result.useCase);
       setSubmitted(true);
       resetWizard();
       router.push('/inventory');
@@ -319,6 +327,13 @@ export function CardFlipWizard() {
             {isSaving ? 'Saving…' : lastSavedAt ? 'Saved' : ''}
           </div>
         </div>
+
+        {/* P2: Form cleared notification */}
+        {freshCleared && (
+          <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+            Form cleared — starting fresh
+          </div>
+        )}
 
         {/* Progress */}
         <div className="mb-6">

@@ -226,11 +226,27 @@ export function deriveAssessmentValuesFromIntake(
     derived.hasExternalUsers = 'yes';
   }
 
-  // GenAI usage (approximation: foundation model = GenAI)
-  if (intake.usesFoundationModel === 'yes' || intake.usesFoundationModel === 'yes_vendor_managed') {
+  // P2 fix: GenAI usage must derive from aiType, NOT usesFoundationModel.
+  // A predictive/classification ML system using a vendor model is NOT GenAI.
+  // Intake field: aiType (multiselect) → Assessment field: usesGenAi (yes/no)
+  const aiTypes = intake.aiType ?? [];
+  if (aiTypes.includes('generative_ai') || aiTypes.includes('rag')) {
     derived.usesGenAi = 'yes';
-  } else if (intake.usesFoundationModel === 'no') {
+  } else {
     derived.usesGenAi = 'no';
+  }
+
+  // P2 fix: Human validation → derive from humanOversight, not defaulted.
+  // Intake field: humanOversight → Assessment field: humanValidatesOutputs
+  // "AI acts on its own" or "spot_check" → No (no human reviews before action)
+  // "human_reviews" or "human_decides" → Yes
+  if (intake.humanOversight === 'fully_autonomous' || intake.humanOversight === 'spot_check') {
+    derived.humanValidatesOutputs = 'no';
+  } else if (
+    intake.humanOversight === 'human_reviews' ||
+    intake.humanOversight === 'human_decides'
+  ) {
+    derived.humanValidatesOutputs = 'yes';
   }
 
   // Third party
@@ -241,9 +257,20 @@ export function deriveAssessmentValuesFromIntake(
     derived.involvesThirdParty = 'no';
   }
 
-  // Deployment regions (direct copy if present)
+  // P1/P2 fix: Deployment regions — map intake region codes to assessment codes.
+  // Intake uses 'eu_eea', assessment uses 'eu'. Must preserve ALL selected regions.
+  // Intake field: deploymentRegions → Assessment field: deploymentRegions
   if (intake.deploymentRegions && intake.deploymentRegions.length > 0) {
-    derived.deploymentRegions = intake.deploymentRegions;
+    const REGION_MAP: Record<string, string> = {
+      eu_eea: 'eu',
+      uk: 'eu', // UK triggers same EU AI Act considerations
+      us_only: 'us',
+      apac: 'apac',
+      latam: 'latam',
+      global: 'eu', // global includes EU
+    };
+    const mapped = [...new Set(intake.deploymentRegions.map((r) => REGION_MAP[r] ?? r))];
+    derived.deploymentRegions = mapped;
   }
 
   // Data classification: map from intake.dataSensitivity (multiselect) to highest level
@@ -265,13 +292,20 @@ export function deriveAssessmentValuesFromIntake(
     }
   }
 
-  // PII flag
+  // P2 fix: PII flag — must include customer_confidential and regulated_financial,
+  // not just personal_info and health_info. Transaction data, device fingerprints,
+  // account numbers, and geolocation all count as PII.
+  // Intake field: dataSensitivity (multiselect) → Assessment field: interactsWithPii
   if (intake.dataSensitivity) {
-    derived.interactsWithPii =
-      intake.dataSensitivity.includes('personal_info') ||
-      intake.dataSensitivity.includes('health_info')
-        ? 'yes'
-        : 'no';
+    const piiCategories = [
+      'personal_info',
+      'health_info',
+      'customer_confidential',
+      'regulated_financial',
+    ];
+    derived.interactsWithPii = intake.dataSensitivity.some((d) => piiCategories.includes(d))
+      ? 'yes'
+      : 'no';
   }
 
   return derived;

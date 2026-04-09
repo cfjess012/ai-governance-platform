@@ -14,18 +14,17 @@ const HEADING_DELAY_MS = LABEL_TEXT.length * TYPE_SPEED_MS + LABEL_TO_HEADING_PA
 /**
  * First screen a user sees when registering a new AI use case.
  *
- * All three intake flows collect the exact same question set — this page
- * is for picking the *experience*, not the content. Each card shows a
- * tiny static preview of what the flow looks like so the user can choose
- * visually.
+ * Primary action: **Register** — the 7-question Layer 1 form that routes
+ * most users to a direct lightweight approval and the rest into a
+ * pre-filled full intake. Details-oriented users can skip directly to
+ * one of the three full-form experiences via the secondary section.
  */
 export function IntakeMethodChooser() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 px-4 py-14">
       <div className="mx-auto max-w-3xl">
         <div className="mb-10 text-center">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-base font-medium text-blue-700">
-            <span className="h-2 w-2 rounded-full bg-blue-500" />
+          <div className="mb-3 inline-flex items-center rounded-full bg-blue-50 px-4 py-2 text-base font-medium text-blue-700">
             <TypewriterText text={LABEL_TEXT} speed={TYPE_SPEED_MS} mono />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
@@ -36,34 +35,67 @@ export function IntakeMethodChooser() {
             />
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Same questions either way — pick the experience that fits you. You can always switch
-            later.
+            Seven questions to register. We&apos;ll route you to the right review path from there.
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        {/* Primary action — the Layer 1 quick register */}
+        <Link
+          href="/intake/register"
+          className="group relative mb-6 block overflow-hidden rounded-2xl border-2 border-blue-400 bg-white p-6 shadow-md transition-all hover:-translate-y-0.5 hover:border-blue-500 hover:shadow-lg"
+        >
+          <div className="flex items-start gap-5">
+            <div
+              aria-hidden
+              className="hidden h-28 w-40 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 to-slate-100 sm:flex"
+            >
+              <SinglePagePreview />
+            </div>
+            <div className="flex-1">
+              <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                Recommended · 2 min
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900">Quick register</h2>
+              <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                Seven questions. Most cases get approved on the spot; higher-risk cases continue
+                into a pre-filled full intake so you don&apos;t retype anything.
+              </p>
+              <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-blue-600">
+                Start →
+              </span>
+            </div>
+          </div>
+        </Link>
+
+        {/* Alternative experiences — the full-intake options, all visible.
+            Every option below collects the same ~30-question set; they
+            differ only in how the questions are presented. Users pick the
+            experience they prefer. */}
+        <div className="mb-4 flex items-center gap-3 text-xs text-slate-500">
+          <span className="h-px flex-1 bg-slate-200" />
+          <span>or pick a full intake experience</span>
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
           <MethodCard
             href="/intake/cards"
-            title="Card-flip intake"
-            description="One question at a time on a deck of flip cards. Best when you want to pace yourself and focus on each decision."
+            title="Card flip"
+            description="One question at a time on a deck of flip cards. Focused, paced, branching adapts as you go."
             preview={<CardFlipPreview />}
           />
           <MethodCard
             href="/intake/quick"
-            title="Single-page form"
-            description="Every question on one scrollable page with floating labels and pill toggles. Best when you want to see everything at once."
+            title="Single page"
+            description="Every question on one scrollable page with floating labels and pill toggles."
             preview={<SinglePagePreview />}
           />
-        </div>
-
-        <div className="mt-8 text-center">
-          <Link
+          <MethodCard
             href="/intake/full"
-            className="text-xs text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
-          >
-            Or use the full guided intake (sectioned wizard with AI coaching and live
-            classification)
-          </Link>
+            title="Full guided"
+            description="Sectioned wizard with AI coaching, auto-save, and live classification."
+            preview={<FullGuidedPreview />}
+          />
         </div>
       </div>
     </div>
@@ -200,6 +232,41 @@ function SinglePagePreview() {
             <span className="h-2 w-8 rounded-full bg-blue-500" />
             <span className="h-2 w-6 rounded-full border border-slate-300 bg-white" />
             <span className="h-2 w-7 rounded-full border border-slate-300 bg-white" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Static mini-mock of the full guided wizard: a miniature sidebar with
+ * section nav (the active one highlighted), a content area with a progress
+ * strip, a few form rows, and a primary button. No hover animation — the
+ * full wizard is the "no surprises" experience and the preview matches.
+ */
+function FullGuidedPreview() {
+  return (
+    <div className="flex h-full w-full items-center justify-center px-4">
+      <div className="flex h-24 w-full gap-1.5 overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm">
+        {/* Sidebar */}
+        <div className="flex w-12 flex-col justify-start gap-1 bg-slate-800 p-1.5">
+          <div className="h-1 w-6 rounded-full bg-slate-500" />
+          <div className="mt-0.5 h-1 w-full rounded-full bg-blue-500" />
+          <div className="h-1 w-3/4 rounded-full bg-slate-600" />
+          <div className="h-1 w-2/3 rounded-full bg-slate-600" />
+          <div className="h-1 w-1/2 rounded-full bg-slate-600" />
+        </div>
+        {/* Content area */}
+        <div className="flex flex-1 flex-col gap-1 p-2">
+          <div className="h-0.5 w-full rounded-full bg-slate-100">
+            <div className="h-full w-2/5 rounded-full bg-blue-500" />
+          </div>
+          <div className="mt-0.5 h-1 w-3/4 rounded-full bg-slate-300" />
+          <div className="h-1 w-full rounded-full bg-slate-200" />
+          <div className="h-1 w-5/6 rounded-full bg-slate-200" />
+          <div className="mt-auto flex items-center justify-end">
+            <span className="h-2 w-8 rounded bg-blue-500" />
           </div>
         </div>
       </div>

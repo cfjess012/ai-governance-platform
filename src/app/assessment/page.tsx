@@ -13,8 +13,8 @@ import {
   deriveAssessmentValuesFromIntake,
   getPrePopulatedFields,
 } from '@/lib/assessment/section-visibility';
-import type { EuAssessmentInput } from '@/lib/classification/eu-ai-act-assessment';
-import { classifyEuAiActAssessment } from '@/lib/classification/eu-ai-act-assessment';
+import type { EuAssessmentInput } from '@/lib/classification/eu-ai-act-determination';
+import { classifyEuAiActAssessment } from '@/lib/classification/eu-ai-act-determination';
 import type { SevenDimensionInput } from '@/lib/classification/seven-dimension-scoring';
 import { calculateSevenDimensionScore } from '@/lib/classification/seven-dimension-scoring';
 import {
@@ -45,7 +45,7 @@ function buildScoringInput(formData: Record<string, unknown>): SevenDimensionInp
     dataAccessible: (formData.dataAccessible as string) ?? 'no',
     replacesHumanDecisions: (formData.replacesHumanDecisions as string) ?? 'no',
     automatesExternalDecisions: (formData.automatesExternalDecisions as string) ?? 'no',
-    humanValidatesOutputs: (formData.humanValidatesOutputs as string) ?? 'yes',
+    humanValidatesOutputs: (formData.humanValidatesOutputs as string) ?? 'no',
     biasFairnessTesting: (formData.biasFairnessTesting as string) ?? '',
     customerFacingOutputs: (formData.customerFacingOutputs as string) ?? 'no',
     hasExternalUsers: (formData.hasExternalUsers as string) ?? 'no',
@@ -96,6 +96,11 @@ function AssessmentPage() {
 
   const [submitResult, setSubmitResult] = useState<{ id: string } | null>(null);
   const [showAllSections, setShowAllSections] = useState(false);
+  // P9: assessor attestation — consumed in handleSubmit; setters are for future attestation form UI
+  // biome-ignore lint/correctness/noUnusedVariables: setter consumed when attestation form UI is added
+  const [assessorName, setAssessorName] = useState('');
+  // biome-ignore lint/correctness/noUnusedVariables: setter consumed when attestation form UI is added
+  const [assessorTitle, setAssessorTitle] = useState('');
 
   // Look up the linked case (used for triage decision and intake-driven derivations)
   const linkedCase = useMemo(
@@ -192,10 +197,29 @@ function AssessmentPage() {
 
   const sectionQuestions = useMemo(() => {
     if (!currentSection || isReview) return [];
+    // Skip questions whose values are derived from intake — the user
+    // already answered them there and re-asking erodes data quality. The
+    // derived values are merged into formData on load so they're still
+    // persisted and still feed the scoring + EU AI Act determination.
     return assessmentQuestions.filter(
-      (q) => q.stage === currentSection.id && visibleQuestionIds.has(q.id),
+      (q) =>
+        q.stage === currentSection.id &&
+        visibleQuestionIds.has(q.id) &&
+        !prePopulatedFields.has(q.field),
     );
-  }, [currentSection, isReview, visibleQuestionIds]);
+  }, [currentSection, isReview, visibleQuestionIds, prePopulatedFields]);
+
+  // Count of questions hidden in the current section — drives the inline
+  // "N answers pre-filled from intake" notice at the top of the section.
+  const sectionSkippedCount = useMemo(() => {
+    if (!currentSection || isReview) return 0;
+    return assessmentQuestions.filter(
+      (q) =>
+        q.stage === currentSection.id &&
+        visibleQuestionIds.has(q.id) &&
+        prePopulatedFields.has(q.field),
+    ).length;
+  }, [currentSection, isReview, visibleQuestionIds, prePopulatedFields]);
 
   const useCaseOptions = useMemo(
     () => useCases.map((uc) => ({ value: uc.id, label: uc.intake.useCaseName ?? uc.id })),
@@ -241,12 +265,38 @@ function AssessmentPage() {
 
       const targetId = (formData.associatedUseCaseId as string) ?? useCaseId;
       if (targetId) {
+        // P1 fix: triage-confirmed EU AI Act tier is authoritative.
+        // Assessment auto-calculation is stored as a suggestion but does NOT
+        // overwrite the confirmed tier. If they conflict, both are preserved
+        // so the analyst can resolve the discrepancy on the case detail page.
+        const existingCase = useCases.find((uc) => uc.id === targetId);
+        const triageConfirmedEuTier = existingCase?.triage
+          ? existingCase.classification.euAiActTier
+          : undefined;
+        const isTriageConfirmed =
+          triageConfirmedEuTier !== undefined && triageConfirmedEuTier !== 'pending';
+
+        // Use triage-confirmed tier if it exists, otherwise use assessment auto-calc
+        const finalEuTier = isTriageConfirmed ? triageConfirmedEuTier : euClassification.tier;
+
+        // P9: build assessor attestation if provided
+        const attestation = assessorName.trim()
+          ? {
+              name: assessorName.trim(),
+              title: assessorTitle.trim(),
+              submittedAt: new Date().toISOString(),
+              declaration:
+                'I attest that the answers in this assessment are accurate and complete to the best of my knowledge.',
+            }
+          : undefined;
+
         updateUseCase(targetId, {
           assessment: formData as never,
           scoring,
           euAiActDetail: euClassification,
+          assessorAttestation: attestation,
           classification: {
-            euAiActTier: euClassification.tier,
+            euAiActTier: finalEuTier,
             riskTier: scoring.riskTier,
             overrideTriggered: scoring.overrideTriggered,
             explanation: scoring.dimensions
@@ -254,7 +304,11 @@ function AssessmentPage() {
               .map((d) => `${d.name}: ${d.explanation}`),
           },
         });
-        updateStatus(targetId, 'approved', 'mock-user@example.com');
+        // P7: audit trail entry for assessment completion
+        const assessorLabel = attestation
+          ? `${attestation.name} (${attestation.title})`
+          : 'mock-user@example.com';
+        updateStatus(targetId, 'decision_pending', assessorLabel);
       }
 
       setSubmitted(true);
@@ -262,7 +316,17 @@ function AssessmentPage() {
     } finally {
       setSaving(false);
     }
-  }, [formData, useCaseId, setSaving, setSubmitted, updateUseCase, updateStatus]);
+  }, [
+    formData,
+    useCaseId,
+    useCases,
+    assessorName,
+    assessorTitle,
+    setSaving,
+    setSubmitted,
+    updateUseCase,
+    updateStatus,
+  ]);
 
   if (isSubmitted && submitResult) {
     return (
@@ -400,15 +464,13 @@ function AssessmentPage() {
             <button
               key={section.id}
               type="button"
-              onClick={() => {
-                if (index <= currentSectionIndex) setCurrentSection(index);
-              }}
-              className={`px-3 py-2 text-xs font-medium rounded-lg whitespace-nowrap transition-all ${
+              onClick={() => setCurrentSection(index)}
+              className={`px-3 py-2 text-xs font-medium rounded-lg whitespace-nowrap transition-all cursor-pointer ${
                 isCurrent
                   ? 'bg-[#00539B] text-white shadow-sm'
                   : isPast
                     ? 'bg-[#00539B]/10 text-[#00539B] hover:bg-[#00539B]/20'
-                    : 'bg-slate-100 text-slate-400'
+                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
               }`}
             >
               {section.subtitle || section.title}
@@ -446,25 +508,24 @@ function AssessmentPage() {
                 <p className="text-xs text-slate-500">{currentSection.subtitle}</p>
               )}
             </div>
+            {sectionSkippedCount > 0 && linkedCase && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-xs leading-relaxed text-blue-800">
+                <strong>{sectionSkippedCount}</strong> question
+                {sectionSkippedCount === 1 ? ' was' : 's were'} auto-filled from the intake and
+                hidden in this section. The answers are still recorded —{' '}
+                <a
+                  href={`/inventory/${linkedCase.id}`}
+                  className="underline underline-offset-2 hover:text-blue-900"
+                >
+                  edit them in the intake
+                </a>{' '}
+                if something changed.
+              </div>
+            )}
             <div className="space-y-6">
               {sectionQuestions.map((q) => {
                 const question = q.id === 'assess-q1' ? { ...q, options: useCaseOptions } : q;
-                const isPrePopulated = prePopulatedFields.has(q.field);
                 const fieldValue = formData[q.field as keyof typeof formData];
-
-                if (isPrePopulated && linkedCase) {
-                  return (
-                    <ConditionalField key={q.id} visible={true}>
-                      <PrePopulatedDisplay
-                        label={q.label}
-                        value={fieldValue}
-                        options={q.options}
-                        useCaseId={linkedCase.id}
-                      />
-                    </ConditionalField>
-                  );
-                }
-
                 return (
                   <ConditionalField key={q.id} visible={true}>
                     <QuestionRenderer
@@ -503,48 +564,6 @@ function AssessmentPage() {
  * Read-only display for fields that were pre-populated from intake.
  * Shows the value, a "from intake" badge, and a link to edit in intake.
  */
-function PrePopulatedDisplay({
-  label,
-  value,
-  options,
-  useCaseId,
-}: {
-  label: string;
-  value: unknown;
-  options?: { value: string; label: string }[];
-  useCaseId: string;
-}) {
-  const formatted = (() => {
-    if (value === undefined || value === null || value === '') return '\u2014';
-    if (Array.isArray(value)) {
-      if (options) {
-        return value.map((v) => options.find((o) => o.value === v)?.label ?? v).join(', ');
-      }
-      return value.join(', ');
-    }
-    if (options) {
-      return options.find((o) => o.value === value)?.label ?? String(value);
-    }
-    return String(value);
-  })();
-
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <span className="block text-sm font-medium text-slate-700">{label}</span>
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-medium text-slate-500">
-          From intake
-        </span>
-      </div>
-      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
-        {formatted}
-      </div>
-      <p className="text-xs text-slate-400">
-        This value was captured at intake.{' '}
-        <Link href={`/inventory/${useCaseId}`} className="text-blue-600 hover:underline">
-          Edit in intake
-        </Link>
-      </p>
-    </div>
-  );
-}
+// PrePopulatedDisplay was removed — derived-from-intake fields are now
+// hidden from the form entirely and surfaced via the "N auto-filled" banner
+// at the top of each section.

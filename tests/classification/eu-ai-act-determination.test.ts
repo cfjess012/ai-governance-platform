@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyEuAiActAssessment,
   type EuAssessmentInput,
-} from '@/lib/classification/eu-ai-act-assessment';
+} from '@/lib/classification/eu-ai-act-determination';
 
 const baseInput: EuAssessmentInput = {
   deploymentRegions: ['us'],

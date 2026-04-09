@@ -3,15 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { intakeQuestions, intakeStages } from '@/config/questions';
 import { useAiAnalysis } from '@/lib/ai/use-ai-analysis';
+import { submitIntake as submitIntakeUnified } from '@/lib/intake/submit';
 import {
   calculateProgress,
   getVisibleIntakeQuestions,
   getVisibleIntakeStages,
 } from '@/lib/questions/branching-rules';
 import { intakeSchema } from '@/lib/questions/intake-schema';
-import { calculateInherentRisk } from '@/lib/risk/inherent-risk';
 import { useAiStore } from '@/lib/store/ai-store';
 import { useInventoryStore } from '@/lib/store/inventory-store';
+import { useSessionStore } from '@/lib/store/session-store';
 import { useWizardStore } from '@/lib/store/wizard-store';
 import { AiToggle } from './AiToggle';
 import { AiUnavailableToast } from './AiUnavailableToast';
@@ -124,7 +125,19 @@ export function WizardShell() {
     markSaved,
     reset,
   } = useWizardStore();
+  const sessionId = useWizardStore((s) => s.sessionId);
+  const startFresh = useWizardStore((s) => s.startFresh);
   const addUseCase = useInventoryStore((s) => s.addUseCase);
+  const sessionEmail = useSessionStore((s) => s.user?.email ?? 'unknown@example.com');
+
+  // P2 fix: clear stale data from a prior completed intake on mount.
+  // If sessionId is null but formData has content, it's leftover data.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: must run once on mount to detect stale sessions
+  useEffect(() => {
+    if (!sessionId && Object.keys(formData).length > 0) {
+      startFresh();
+    }
+  }, []);
 
   const [stageErrors, setStageErrors] = useState<Record<string, string>>({});
   const [submitResult, setSubmitResult] = useState<{ id: string } | null>(null);
@@ -265,33 +278,19 @@ export function WizardShell() {
     }
     try {
       setSaving(true);
-      const response = await fetch('/api/intake/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formData }),
+      // Use the unified submitIntake pipeline so the Layer 1 router fires
+      // consistently for every intake flow (Gap 3 fix).
+      const result = submitIntakeUnified({
+        formData: parsed.data,
+        submittedBy: sessionEmail,
       });
-      const result = await response.json();
-      if (result.data) {
-        const now = new Date().toISOString();
-        // Compute inherent risk from the validated intake answers.
-        // This is the preliminary 5-tier risk classification used for triage routing.
-        const inherentRisk = calculateInherentRisk(result.data.intake);
-        addUseCase({
-          id: result.data.id,
-          intake: result.data.intake,
-          classification: result.data.classification,
-          inherentRisk,
-          status: 'submitted',
-          timeline: [{ status: 'submitted', timestamp: now, changedBy: 'mock-user@example.com' }],
-          comments: [],
-          createdAt: now,
-          updatedAt: now,
-          submittedBy: 'mock-user@example.com',
-        });
+      if (result.ok) {
+        addUseCase(result.useCase);
         markSaved();
         setSubmitted(true);
-        setSubmitResult({ id: result.data.id });
+        setSubmitResult({ id: result.useCase.id });
       } else {
+        setStageErrors(result.errors);
         setSaving(false);
       }
     } catch {

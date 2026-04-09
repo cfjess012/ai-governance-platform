@@ -70,6 +70,7 @@ export const intakeSchema = z.object({
         'proprietary_ip',
         'external_content_generation',
         'security_vulnerability_risk',
+        'processes_customer_pii',
         'none_of_above',
       ]),
     )

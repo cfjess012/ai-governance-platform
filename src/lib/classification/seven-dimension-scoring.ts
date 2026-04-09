@@ -56,12 +56,18 @@ export interface DimensionScore {
   explanation: string;
 }
 
-export type RiskTier = 'low' | 'medium' | 'high' | 'critical';
+// Unified with the 5-level inherent risk tier. Re-exported here so existing
+// `import { RiskTier } from '@/lib/classification/seven-dimension-scoring'`
+// callers keep working — but the values are now the canonical 5-level set.
+export type { InherentRiskTier as RiskTier } from '@/lib/risk/types';
+
+import type { InherentRiskTier } from '@/lib/risk/types';
 
 export interface SevenDimensionResult {
   dimensions: DimensionScore[];
   compositeScore: number;
-  riskTier: RiskTier;
+  /** 5-level tier shared with inherent risk scoring. */
+  riskTier: InherentRiskTier;
   overrideTriggered: boolean;
   overrideReason: string;
   governanceRequirements: string[];
@@ -289,18 +295,31 @@ function scoreThirdPartyRisk(input: SevenDimensionInput): { score: number; expla
 }
 
 // ── Risk tier mapping ──
+//
+// Unified with the 5-level inherent risk tier. Thresholds were tuned so a
+// benign case (~1.0–1.4 composite) lands in `low` and a worst-case
+// (dimensions averaging 4+) lands in `high`. The critical-dimension
+// override now forces `high` (the new top tier), not a separate bucket.
 
-function getRiskTier(compositeScore: number): RiskTier {
-  if (compositeScore <= 1.9) return 'low';
-  if (compositeScore <= 2.9) return 'medium';
-  if (compositeScore <= 3.9) return 'high';
-  return 'critical';
+function getRiskTier(compositeScore: number): InherentRiskTier {
+  if (compositeScore <= 1.4) return 'low';
+  if (compositeScore <= 2.2) return 'medium_low';
+  if (compositeScore <= 3.0) return 'medium';
+  if (compositeScore <= 3.7) return 'medium_high';
+  return 'high';
 }
 
-function getGovernanceRequirements(tier: RiskTier): string[] {
+function getGovernanceRequirements(tier: InherentRiskTier): string[] {
   switch (tier) {
     case 'low':
       return ['Annual review', 'Standard documentation', 'Lightweight controls'];
+    case 'medium_low':
+      return [
+        'Lightweight review',
+        'Annual re-attestation',
+        'Incident reporting channel',
+        'AI Champion oversight',
+      ];
     case 'medium':
       return [
         'Standard governance',
@@ -308,7 +327,7 @@ function getGovernanceRequirements(tier: RiskTier): string[] {
         'Semi-annual review',
         'AI Champion oversight',
       ];
-    case 'high':
+    case 'medium_high':
       return [
         'Semi-annual validation',
         'Enhanced monitoring',
@@ -316,7 +335,7 @@ function getGovernanceRequirements(tier: RiskTier): string[] {
         'Governance analyst review',
         'Bias testing required',
       ];
-    case 'critical':
+    case 'high':
       return [
         'Board approval required',
         'Continuous monitoring',
@@ -400,7 +419,9 @@ export function calculateSevenDimensionScore(input: SevenDimensionInput): SevenD
   const criticalDimension = dimensions.find((d) => d.score === 5);
   const overrideTriggered = criticalDimension !== undefined;
 
-  const riskTier = overrideTriggered ? 'critical' : getRiskTier(compositeScore);
+  // Critical-dimension override: if any dimension scored 5/5, force the
+  // case to the top tier (`high`) regardless of the composite score.
+  const riskTier: InherentRiskTier = overrideTriggered ? 'high' : getRiskTier(compositeScore);
 
   return {
     dimensions,

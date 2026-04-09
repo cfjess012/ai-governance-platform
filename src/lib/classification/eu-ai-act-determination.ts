@@ -147,6 +147,27 @@ export function classifyEuAiActAssessment(input: EuAssessmentInput): EuAiActAsse
     });
   }
 
+  // P1: EU AI Act Annex III Category 5(b) — autonomous decisions affecting
+  // consumer financial account access in EU/EEA deployment.
+  // Citation: Regulation (EU) 2024/1689, Annex III §5(b): "AI systems intended
+  // to be used to evaluate the creditworthiness of natural persons or establish
+  // their credit score, with the exception of AI systems used for the purpose
+  // of detecting financial fraud."
+  if (
+    euNexus &&
+    input.automatesExternalDecisions === 'yes' &&
+    input.businessActivities.some((a) =>
+      ['insurance_decisions', 'investment_decisions', 'pricing_underwriting'].includes(a),
+    )
+  ) {
+    triggers.push({
+      category: 'Financial Account Access',
+      reason:
+        'EU/EEA deployment with autonomous decisions affecting consumer financial account access — Annex III Category 5(b)',
+      annexRef: 'Annex III #5(b)',
+    });
+  }
+
   // ── Determine tier ──
   if (triggers.length > 0) {
     return {

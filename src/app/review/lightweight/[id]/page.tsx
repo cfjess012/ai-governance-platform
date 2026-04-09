@@ -72,16 +72,24 @@ export default function LightweightReviewPage({ params }: { params: Promise<{ id
     );
   }
 
-  const isCorrectPath = useCase.triage?.governancePath === 'lightweight';
-  if (!isCorrectPath) {
+  // A case is eligible for lightweight review when it's either:
+  //   (a) already in `lightweight_review` status — auto-routed by the
+  //       Layer 1 intake router without needing a triage step, OR
+  //   (b) has a completed triage with governancePath === 'lightweight' —
+  //       the standard path through the governance team.
+  const isInLightweightQueue = useCase.status === 'lightweight_review';
+  const triageSaidLightweight = useCase.triage?.governancePath === 'lightweight';
+  const isEligibleForLightweight = isInLightweightQueue || triageSaidLightweight;
+  if (!isEligibleForLightweight) {
     return (
       <div className="max-w-4xl mx-auto px-6 py-16 text-center">
         <h1 className="text-xl font-semibold text-slate-900 mb-2">
           This case is not on the lightweight path
         </h1>
         <p className="text-sm text-slate-500 mb-4">
-          Lightweight review is only available for cases triaged with the lightweight governance
-          path. This case was triaged for {useCase.triage?.governancePath ?? 'no path yet'}.
+          Lightweight review is only available for cases in the lightweight queue or triaged with
+          the lightweight governance path. This case is currently{' '}
+          <strong>{useCase.status.replace(/_/g, ' ')}</strong>.
         </p>
         <Link href={`/inventory/${useCase.id}`} className="text-sm text-blue-600 hover:underline">
           &larr; Back to case

@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { intakeQuestions } from '@/config/questions';
+import { submitIntake } from '@/lib/intake/submit';
 import {
   getInlineBanners,
   getVisibleIntakeQuestions,
   isFastTrackEligible,
 } from '@/lib/questions/branching-rules';
-import { intakeSchema } from '@/lib/questions/intake-schema';
-import { calculateInherentRisk } from '@/lib/risk/inherent-risk';
 import { useInventoryStore } from '@/lib/store/inventory-store';
+import { useSessionStore } from '@/lib/store/session-store';
 import { useWizardStore } from '@/lib/store/wizard-store';
 import { FloatingQuestionRenderer } from './FloatingQuestionRenderer';
 
@@ -30,7 +30,18 @@ export function QuickIntakeForm() {
   const setSaving = useWizardStore((s) => s.setSaving);
   const markSaved = useWizardStore((s) => s.markSaved);
   const resetWizard = useWizardStore((s) => s.reset);
+  const sessionId = useWizardStore((s) => s.sessionId);
+  const startFresh = useWizardStore((s) => s.startFresh);
   const addUseCase = useInventoryStore((s) => s.addUseCase);
+  const sessionEmail = useSessionStore((s) => s.user?.email ?? 'unknown@example.com');
+
+  // P2 fix: clear stale data from a prior completed intake on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: must run once on mount to detect stale sessions
+  useEffect(() => {
+    if (!sessionId && Object.keys(formData).length > 0) {
+      startFresh();
+    }
+  }, []);
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -131,61 +142,28 @@ export function QuickIntakeForm() {
     return () => window.clearTimeout(t);
   }, [formData, setSaving, markSaved]);
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(() => {
     // Mark every visible field as touched so all errors become visible.
     const allTouched: Record<string, boolean> = {};
     for (const q of visibleQuestions) allTouched[q.field] = true;
     setTouched(allTouched);
 
-    const parsed = intakeSchema.safeParse(formData);
-    if (!parsed.success) {
-      const nextErrors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0];
-        if (typeof field === 'string' && !nextErrors[field]) nextErrors[field] = issue.message;
-      }
-      setErrors(nextErrors);
-      // Scroll to the first invalid field that is actually visible.
-      const firstVisibleError = visibleQuestions.find((q) => nextErrors[q.field]);
-      if (firstVisibleError) scrollToField(firstVisibleError.field);
-      return;
-    }
-
+    // Use the unified submitIntake pipeline so the Layer 1 router fires
+    // consistently for every intake flow (Gap 3 fix).
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/intake/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formData: parsed.data }),
+      const result = submitIntake({
+        formData: formData as Parameters<typeof submitIntake>[0]['formData'],
+        submittedBy: sessionEmail,
       });
-      const result = (await res.json()) as {
-        data?: {
-          id: string;
-          intake: Parameters<typeof calculateInherentRisk>[0];
-          classification: {
-            euAiActTier: string;
-            riskTier: string;
-            overrideTriggered: boolean;
-            explanation: string[];
-          };
-        };
-      };
-      if (!result.data) throw new Error('Submit failed');
-      const now = new Date().toISOString();
-      const inherentRisk = calculateInherentRisk(result.data.intake);
-      addUseCase({
-        id: result.data.id,
-        intake: result.data.intake as never,
-        classification: result.data.classification as never,
-        inherentRisk,
-        status: 'submitted',
-        timeline: [{ status: 'submitted', timestamp: now, changedBy: 'mock-user@example.com' }],
-        comments: [],
-        createdAt: now,
-        updatedAt: now,
-        submittedBy: 'mock-user@example.com',
-      });
-      setSubmittedId(result.data.id);
+      if (!result.ok) {
+        setErrors(result.errors);
+        const firstVisibleError = visibleQuestions.find((q) => result.errors[q.field]);
+        if (firstVisibleError) scrollToField(firstVisibleError.field);
+        return;
+      }
+      addUseCase(result.useCase);
+      setSubmittedId(result.useCase.id);
       resetWizard();
     } catch (e) {
       setErrors({ __form: e instanceof Error ? e.message : 'Submit failed' });

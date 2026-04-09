@@ -102,6 +102,18 @@ export function escalateTier(tier: InherentRiskTier): InherentRiskTier {
   }
 }
 
+/** A single intake field + value that contributed to a dimension score */
+export interface ScoreContributor {
+  /** Intake field name (e.g., 'humanOversight', 'whoAffected') */
+  field: string;
+  /** Display label for the field */
+  label: string;
+  /** The value that was present at score time */
+  value: string;
+  /** How it contributed (e.g., "+1 scale bump") */
+  contribution: string;
+}
+
 /** A risk dimension scored 0-4 */
 export interface DimensionScore {
   /** Stable identifier */
@@ -114,6 +126,8 @@ export interface DimensionScore {
   weight: number;
   /** Human-readable explanation of why this score */
   rationale: string;
+  /** P13: intake fields that drove this score (for expandable breakdown in UI) */
+  contributors?: ScoreContributor[];
 }
 
 export type DimensionId =

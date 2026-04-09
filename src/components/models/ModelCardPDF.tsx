@@ -159,99 +159,109 @@ const styles = StyleSheet.create({
   },
   threeCol: {
     flex: 1,
-    paddingRight: 10,
+    paddingRight: 14,
   },
   threeColLast: {
     flex: 1,
   },
   threeColHeader: {
-    fontSize: 8.5,
+    fontSize: 8,
     fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 6,
-    paddingBottom: 4,
-    borderBottomWidth: 1,
+    letterSpacing: 1.2,
+    marginBottom: 10,
+    paddingBottom: 6,
+    borderBottomWidth: 2,
+    lineHeight: 1,
   },
   bulletItem: {
     fontSize: 8.5,
     color: colors.text,
-    marginBottom: 4,
-    paddingLeft: 8,
-    lineHeight: 1.4,
+    marginBottom: 6,
+    paddingLeft: 10,
+    lineHeight: 1.45,
   },
 
   // Section
   section: {
-    marginBottom: 18,
+    marginBottom: 22,
   },
   sectionNumber: {
-    fontSize: 14,
+    fontSize: 10,
     color: colors.accent,
     fontFamily: 'Helvetica-Bold',
-    marginRight: 8,
+    marginRight: 10,
+    letterSpacing: 1.5,
+    lineHeight: 1,
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 8,
-    paddingBottom: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderStrong,
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.accent,
   },
   sectionTitle: {
     fontSize: 13,
     color: colors.ink,
     fontFamily: 'Helvetica-Bold',
+    letterSpacing: -0.2,
+    lineHeight: 1,
   },
 
   // Subsection (within a section)
   subsection: {
-    marginBottom: 10,
+    marginBottom: 14,
   },
   subsectionLabel: {
-    fontSize: 8.5,
-    color: colors.muted,
+    fontSize: 7.5,
+    color: colors.accent,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 3,
+    letterSpacing: 1,
+    marginBottom: 5,
     fontFamily: 'Helvetica-Bold',
+    lineHeight: 1,
   },
   subsectionText: {
     fontSize: 9.5,
     color: colors.text,
-    lineHeight: 1.5,
+    lineHeight: 1.55,
   },
 
   // Risk findings
   riskRow: {
     flexDirection: 'row',
-    marginBottom: 8,
-    paddingBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 10,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   riskLabel: {
-    width: 70,
-    fontSize: 9,
+    width: 75,
+    fontSize: 9.5,
     fontFamily: 'Helvetica-Bold',
     color: colors.ink,
+    paddingTop: 3,
   },
   riskBadge: {
-    width: 60,
+    width: 64,
     fontSize: 8,
     fontFamily: 'Helvetica-Bold',
     color: '#ffffff',
     textAlign: 'center',
-    paddingVertical: 2,
-    borderRadius: 2,
-    marginRight: 8,
+    paddingVertical: 4,
+    borderRadius: 3,
+    marginRight: 12,
+    letterSpacing: 0.5,
   },
   riskJustification: {
     flex: 1,
     fontSize: 9,
     color: colors.text,
-    lineHeight: 1.4,
+    lineHeight: 1.5,
+    paddingTop: 2,
   },
 
   // Open gaps
@@ -260,38 +270,42 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgWarning,
     borderLeftWidth: 3,
     borderLeftColor: colors.amber,
-    padding: 8,
-    marginBottom: 6,
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 2,
   },
   gapTitle: {
-    fontSize: 9,
+    fontSize: 9.5,
     fontFamily: 'Helvetica-Bold',
     color: colors.ink,
-    marginBottom: 2,
+    marginBottom: 4,
+    lineHeight: 1.2,
   },
   gapText: {
     fontSize: 9,
     color: colors.text,
-    lineHeight: 1.4,
+    lineHeight: 1.5,
   },
 
   // Use case row
   useCaseRow: {
     flexDirection: 'row',
-    paddingVertical: 4,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   useCaseName: {
     flex: 2,
-    fontSize: 9,
+    fontSize: 9.5,
     color: colors.ink,
     fontFamily: 'Helvetica-Bold',
+    lineHeight: 1.3,
   },
   useCaseMeta: {
     flex: 1,
     fontSize: 8.5,
     color: colors.muted,
+    lineHeight: 1.3,
   },
 
   // UNKNOWN inline marker
@@ -353,10 +367,11 @@ function Section({
   title: string;
   children: React.ReactNode;
 }) {
+  const padded = String(number).padStart(2, '0');
   return (
     <View style={styles.section} wrap={false}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionNumber}>{number}.</Text>
+        <Text style={styles.sectionNumber}>{padded}</Text>
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
       {children}
@@ -460,7 +475,7 @@ export function ModelCardPDF({ model, linkedUseCases = [] }: ModelCardPDFProps) 
         {/* Metrics grid: confidence, overall risk, model basics */}
         <View style={styles.metricsGrid}>
           <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Analysis Confidence</Text>
+            <Text style={styles.metricLabel}>Confidence</Text>
             <Text
               style={{
                 ...styles.metricValue,

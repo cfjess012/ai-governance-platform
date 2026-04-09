@@ -2,14 +2,16 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { AirtableInventoryTable } from '@/components/inventory/AirtableInventoryTable';
 import { Button } from '@/components/ui/Button';
 import { type InherentRiskTier, TIER_DISPLAY } from '@/lib/risk/types';
 import { useInventoryStore } from '@/lib/store/inventory-store';
-import type { AIUseCase, AIUseCaseStatus } from '@/types/inventory';
+import type { AIUseCaseStatus } from '@/types/inventory';
 
 const statusLabels: Record<AIUseCaseStatus, string> = {
   draft: 'Draft',
   submitted: 'Submitted',
+  contact_required: 'Contact Required',
   triage_pending: 'Triage Pending',
   lightweight_review: 'Lightweight Review',
   assessment_required: 'Assessment Required',
@@ -21,109 +23,6 @@ const statusLabels: Record<AIUseCaseStatus, string> = {
   in_production: 'In Production',
   decommissioned: 'Decommissioned',
 };
-
-const statusColors: Record<AIUseCaseStatus, string> = {
-  draft: 'bg-slate-100 text-slate-700',
-  submitted: 'bg-blue-100 text-blue-700',
-  triage_pending: 'bg-amber-100 text-amber-700',
-  lightweight_review: 'bg-cyan-100 text-cyan-700',
-  assessment_required: 'bg-orange-100 text-orange-700',
-  assessment_in_progress: 'bg-purple-100 text-purple-700',
-  decision_pending: 'bg-indigo-100 text-indigo-700',
-  approved: 'bg-green-100 text-green-700',
-  changes_requested: 'bg-yellow-100 text-yellow-700',
-  rejected: 'bg-red-100 text-red-700',
-  in_production: 'bg-emerald-100 text-emerald-700',
-  decommissioned: 'bg-slate-100 text-slate-500',
-};
-
-const PENDING_BADGE = 'bg-slate-100 text-slate-600 border-slate-200';
-
-/** Inherent risk badge — uses TIER_DISPLAY for the 5-tier system */
-function InherentRiskBadge({ useCase }: { useCase: AIUseCase }) {
-  const tier = useCase.inherentRisk?.tier;
-  if (!tier) {
-    return (
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${PENDING_BADGE}`}
-      >
-        Pending
-      </span>
-    );
-  }
-  const display = TIER_DISPLAY[tier];
-  return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${display.badgeClasses}`}
-    >
-      {display.label}
-    </span>
-  );
-}
-
-const EU_TIER_BADGES: Record<string, string> = {
-  prohibited: 'bg-red-100 text-red-800 border-red-200',
-  high: 'bg-orange-100 text-orange-800 border-orange-200',
-  limited: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  minimal: 'bg-slate-100 text-slate-600 border-slate-200',
-  pending: 'bg-slate-100 text-slate-600 border-slate-200',
-};
-
-/** EU AI Act tier badge — separate from inherent risk */
-function EuAiActBadge({ tier }: { tier: string }) {
-  return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${EU_TIER_BADGES[tier] ?? PENDING_BADGE}`}
-    >
-      {tier === 'pending' ? 'Pending' : tier}
-    </span>
-  );
-}
-
-function UseCaseRow({ useCase }: { useCase: AIUseCase }) {
-  return (
-    <tr className="hover:bg-slate-50 transition-colors">
-      <td className="px-4 py-3">
-        <Link
-          href={`/inventory/${useCase.id}`}
-          className="text-sm font-medium text-[#00539B] hover:underline"
-        >
-          {useCase.intake.useCaseName}
-        </Link>
-      </td>
-      <td className="px-4 py-3 text-sm text-slate-600">
-        {(() => {
-          const aiType = useCase.intake.aiType;
-          if (!aiType) return '';
-          // Defensive: handle both legacy string and new array shape
-          const arr = Array.isArray(aiType) ? aiType : [aiType as string];
-          return arr.map((t) => t.replace(/_/g, ' ')).join(', ');
-        })()}
-      </td>
-      <td className="px-4 py-3 text-sm text-slate-600">
-        {useCase.intake.lifecycleStage?.replace('_', ' ')}
-      </td>
-      <td className="px-4 py-3">
-        <InherentRiskBadge useCase={useCase} />
-      </td>
-      <td className="px-4 py-3">
-        <EuAiActBadge tier={useCase.classification.euAiActTier} />
-      </td>
-      <td className="px-4 py-3 text-sm text-slate-600">{useCase.intake.useCaseOwner}</td>
-      <td className="px-4 py-3 text-sm text-slate-600">{useCase.intake.businessArea}</td>
-      <td className="px-4 py-3">
-        <span
-          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[useCase.status]}`}
-        >
-          {statusLabels[useCase.status]}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-xs text-slate-500">
-        {new Date(useCase.createdAt).toLocaleDateString()}
-      </td>
-    </tr>
-  );
-}
 
 export default function InventoryPage() {
   const useCases = useInventoryStore((s) => s.useCases);
@@ -288,58 +187,14 @@ export default function InventoryPage() {
         </select>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
-                <th
-                  className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:text-slate-900"
-                  onClick={() => handleSort('name')}
-                >
-                  Name {sortField === 'name' && (sortDir === 'asc' ? '\u2191' : '\u2193')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  AI Type
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Lifecycle
-                </th>
-                <th
-                  className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:text-slate-900"
-                  onClick={() => handleSort('riskTier')}
-                >
-                  Inherent Tier{' '}
-                  {sortField === 'riskTier' && (sortDir === 'asc' ? '\u2191' : '\u2193')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  EU AI Act
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Owner
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Business Area
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Status
-                </th>
-                <th
-                  className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:text-slate-900"
-                  onClick={() => handleSort('createdAt')}
-                >
-                  Submitted {sortField === 'createdAt' && (sortDir === 'asc' ? '\u2191' : '\u2193')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map((uc) => (
-                <UseCaseRow key={uc.id} useCase={uc} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Airtable-style table */}
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <AirtableInventoryTable
+          useCases={filtered}
+          sortField={sortField}
+          sortDir={sortDir}
+          onSort={handleSort}
+        />
         {filtered.length === 0 && (
           <div className="text-center py-12 text-slate-500">
             {useCases.length === 0 ? (

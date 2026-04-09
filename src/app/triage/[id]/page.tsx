@@ -7,6 +7,7 @@ import { intakeQuestions } from '@/config/questions';
 import { calculateInherentRisk } from '@/lib/risk/inherent-risk';
 import { type InherentRiskTier, TIER_DISPLAY } from '@/lib/risk/types';
 import { useInventoryStore } from '@/lib/store/inventory-store';
+import { useSessionStore } from '@/lib/store/session-store';
 import {
   caseAgeInDays,
   recommendGovernancePath,
@@ -84,6 +85,8 @@ export default function TriageDecisionPage({ params }: { params: Promise<{ id: s
   const router = useRouter();
   const useCase = useInventoryStore((s) => s.useCases.find((uc) => uc.id === id));
   const applyTriage = useInventoryStore((s) => s.applyTriage);
+  const updateUseCase = useInventoryStore((s) => s.updateUseCase);
+  const sessionUser = useSessionStore((s) => s.user);
 
   // The case's stored inherentRisk OR a fresh computation if missing (defensive backfill)
   const inherentRisk = useMemo(() => {
@@ -101,7 +104,9 @@ export default function TriageDecisionPage({ params }: { params: Promise<{ id: s
   const [assignedReviewer, setAssignedReviewer] = useState('');
   const [overrideReason, setOverrideReason] = useState('');
   const [triageNotes, setTriageNotes] = useState('');
+  const [euAiActTier, setEuAiActTier] = useState(useCase?.classification.euAiActTier ?? 'pending');
   const [errors, setErrors] = useState<string[]>([]);
+  const [submitted, setSubmitted] = useState(false);
 
   const riskTierOverridden = confirmedTier !== autoCalculatedTier;
 
@@ -133,8 +138,19 @@ export default function TriageDecisionPage({ params }: { params: Promise<{ id: s
       setErrors(validationErrors);
       return;
     }
-    applyTriage(useCase.id, decision, 'governance-team@example.com');
-    router.push(`/inventory/${useCase.id}`);
+    applyTriage(useCase.id, decision, sessionUser?.name ?? 'Unknown Analyst');
+    // P8: persist EU AI Act classification override during triage
+    if (euAiActTier !== useCase.classification.euAiActTier) {
+      updateUseCase(useCase.id, {
+        classification: {
+          ...useCase.classification,
+          euAiActTier: euAiActTier as 'prohibited' | 'high' | 'limited' | 'minimal' | 'pending',
+        },
+      });
+    }
+    setSubmitted(true);
+    // Brief delay so the user sees confirmation before redirect
+    setTimeout(() => router.push(`/inventory/${useCase.id}`), 1200);
   };
 
   return (
@@ -378,6 +394,7 @@ export default function TriageDecisionPage({ params }: { params: Promise<{ id: s
                 {(['lightweight', 'standard', 'full'] as GovernancePath[]).map((p) => {
                   const cfg = pathDescriptions[p];
                   const isSelected = governancePath === p;
+                  const isRecommended = recommendGovernancePath(autoCalculatedTier) === p;
                   return (
                     <button
                       key={p}
@@ -390,7 +407,14 @@ export default function TriageDecisionPage({ params }: { params: Promise<{ id: s
                       }`}
                     >
                       <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-xs font-semibold text-slate-900">{cfg.title}</span>
+                        <span className="text-xs font-semibold text-slate-900">
+                          {cfg.title}
+                          {isRecommended && (
+                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-blue-100 text-blue-700">
+                              Recommended
+                            </span>
+                          )}
+                        </span>
                         <span className="text-[10px] text-slate-400">{cfg.sla}</span>
                       </div>
                       <p className="text-[11px] text-slate-500 leading-snug">{cfg.desc}</p>
@@ -399,6 +423,32 @@ export default function TriageDecisionPage({ params }: { params: Promise<{ id: s
                 })}
               </div>
             </fieldset>
+
+            {/* P8: EU AI Act classification override */}
+            <div className="mb-4">
+              <label
+                htmlFor="eu-ai-act-tier"
+                className="block text-xs font-medium text-slate-600 mb-1.5"
+              >
+                EU AI Act Classification
+              </label>
+              <select
+                id="eu-ai-act-tier"
+                value={euAiActTier}
+                onChange={(e) => setEuAiActTier(e.target.value as typeof euAiActTier)}
+                className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="pending">Not Yet Determined</option>
+                <option value="minimal">Minimal Risk</option>
+                <option value="limited">Limited Risk</option>
+                <option value="high">High Risk (Annex III)</option>
+                <option value="prohibited">Unacceptable Risk</option>
+              </select>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Auto-detected: {useCase.classification.euAiActTier}. Override if your assessment
+                differs.
+              </p>
+            </div>
 
             {/* Assigned reviewer */}
             <div className="mb-4">
@@ -451,13 +501,22 @@ export default function TriageDecisionPage({ params }: { params: Promise<{ id: s
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="w-full px-4 py-2 text-sm font-medium bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-            >
-              Submit Triage Decision
-            </button>
+            {submitted ? (
+              <div className="p-4 rounded-md border border-emerald-200 bg-emerald-50 text-center">
+                <p className="text-sm font-semibold text-emerald-800">
+                  Triage decision submitted successfully
+                </p>
+                <p className="text-xs text-emerald-600 mt-1">Redirecting to case detail…</p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="w-full px-4 py-2 text-sm font-medium bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+              >
+                Submit Triage Decision
+              </button>
+            )}
           </div>
         </div>
       </div>

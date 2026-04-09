@@ -12,10 +12,12 @@ interface CommentThreadProps {
   currentUserName?: string;
 }
 
+const ALL_ROLES: CaseComment['authorRole'][] = ['governance_team', 'business_user', 'reviewer'];
+
 const roleStyles: Record<CaseComment['authorRole'], { label: string; bg: string; text: string }> = {
   business_user: { label: 'Business User', bg: 'bg-slate-100', text: 'text-slate-600' },
-  governance_team: { label: 'Governance Team', bg: 'bg-blue-100', text: 'text-blue-700' },
-  reviewer: { label: 'Reviewer', bg: 'bg-purple-100', text: 'text-purple-700' },
+  governance_team: { label: 'Governance Analyst', bg: 'bg-blue-100', text: 'text-blue-700' },
+  reviewer: { label: 'Risk Officer', bg: 'bg-purple-100', text: 'text-purple-700' },
 };
 
 function formatRelative(ts: string): string {
@@ -38,13 +40,14 @@ export function CommentThread({
 }: CommentThreadProps) {
   const addComment = useInventoryStore((s) => s.addComment);
   const [draft, setDraft] = useState('');
+  const [selectedRole, setSelectedRole] = useState<CaseComment['authorRole']>(currentUserRole);
 
   const handleSubmit = () => {
     const trimmed = draft.trim();
     if (trimmed.length === 0) return;
     addComment(caseId, {
       author: currentUserName,
-      authorRole: currentUserRole,
+      authorRole: selectedRole,
       body: trimmed,
     });
     setDraft('');
@@ -101,11 +104,24 @@ export function CommentThread({
           placeholder="Add a message..."
           className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
         />
-        <div className="flex items-center justify-between mt-2">
-          <p className="text-xs text-slate-400">
-            Posting as:{' '}
-            <span className="font-medium text-slate-600">{roleStyles[currentUserRole].label}</span>
-          </p>
+        <p className="text-[10px] text-slate-400 mt-1 mb-2 italic">
+          All roles are simulated (no auth). Select a role to tag your message for the audit trail.
+        </p>
+        <div className="flex items-center justify-between mt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">Post as:</span>
+            <select
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value as CaseComment['authorRole'])}
+              className="text-xs border border-slate-200 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+            >
+              {ALL_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {roleStyles[r].label}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="button"
             onClick={handleSubmit}

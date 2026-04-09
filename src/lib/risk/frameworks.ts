@@ -215,5 +215,121 @@ export function detectApplicableFrameworks(input: InherentRiskInput): Applicable
     obligationType: 'documentation',
   });
 
+  // ── P11: US domain-specific frameworks ──
+
+  // ECOA / Fair Housing — triggered by credit/lending decisions
+  if (
+    triggers.includes('credit_lending') ||
+    triggers.includes('insurance_pricing') ||
+    ['underwriting', 'actuarial'].includes(businessArea ?? '')
+  ) {
+    frameworks.push({
+      framework: 'ECOA / Fair Housing',
+      reference: 'ECOA §701 / FHA §3604-3606',
+      applicabilityReason:
+        'Credit or housing-related AI decisions must comply with fair lending and fair housing laws, including disparate impact testing and adverse action notice requirements.',
+      obligationType: 'bias_audit',
+    });
+  }
+
+  // SEC / FINRA — triggered by investment research or financial advice
+  if (
+    triggers.includes('investment_advice') ||
+    triggers.includes('financial_info_retrieval') ||
+    businessArea === 'investments'
+  ) {
+    frameworks.push({
+      framework: 'SEC / FINRA',
+      reference: 'FINRA Rule 2111 / Reg BI',
+      applicabilityReason:
+        'AI used for investment research, recommendations, or financial advice must comply with suitability and best interest obligations.',
+      obligationType: 'documentation',
+    });
+  }
+
+  // Reg E / EFTA — triggered by fraud detection affecting account access
+  if (
+    triggers.includes('fraud_detection') ||
+    (businessArea === 'claims' && whoAffected !== 'internal_only')
+  ) {
+    frameworks.push({
+      framework: 'Reg E / EFTA',
+      reference: 'Reg E §1005.11',
+      applicabilityReason:
+        'AI-driven fraud detection or account actions must comply with Regulation E error resolution and unauthorized transfer liability provisions.',
+      obligationType: 'human_oversight',
+    });
+  }
+
+  // FTC Act Section 5 — triggered by customer-facing AI content generation
+  if (
+    triggers.includes('external_content_generation') ||
+    (whoAffected !== 'internal_only' && aiTypes.includes('generative_ai'))
+  ) {
+    frameworks.push({
+      framework: 'FTC Act Section 5',
+      reference: '15 U.S.C. §45(a)',
+      applicabilityReason:
+        'Customer-facing AI systems must not engage in deceptive or unfair practices. AI-generated content disclosed to consumers triggers FTC scrutiny.',
+      obligationType: 'transparency',
+    });
+  }
+
+  // CFPB / OCC — triggered by credit decisions
+  if (triggers.includes('credit_lending')) {
+    frameworks.push({
+      framework: 'CFPB / OCC',
+      reference: 'OCC 2011-12 / CFPB Circular 2022-03',
+      applicabilityReason:
+        'AI models used in credit decisions require independent validation per OCC model risk guidance, and must provide specific adverse action reasons per CFPB requirements.',
+      obligationType: 'monitoring',
+    });
+  }
+
+  // P8: Proxy variable detection — geolocation, device fingerprint, zip code,
+  // or IP address used in financial decisions triggers ECOA / CFPB fair lending.
+  // Citation: CFPB Circular 2022-03 (proxy discrimination in algorithmic
+  // decision-making). Geolocation correlates with race and national origin;
+  // device fingerprint correlates with age and income.
+  const PROXY_DATA = ['customer_confidential', 'personal_info', 'regulated_financial'];
+  const FINANCIAL_TRIGGERS = [
+    'credit_lending',
+    'insurance_pricing',
+    'investment_advice',
+    'fraud_detection',
+    'financial_info_retrieval',
+  ];
+  const hasProxyData = dataSensitivity.some((d) => PROXY_DATA.includes(d));
+  const hasFinancialDecision = triggers.some((t) => FINANCIAL_TRIGGERS.includes(t));
+  const isFinancialArea = [
+    'finance',
+    'actuarial',
+    'claims',
+    'underwriting',
+    'investments',
+  ].includes(businessArea ?? '');
+
+  if (hasProxyData && (hasFinancialDecision || isFinancialArea)) {
+    // Only add if not already tagged by credit_lending or explicit trigger
+    if (!triggers.includes('credit_lending')) {
+      frameworks.push({
+        framework: 'ECOA / Fair Housing',
+        reference: 'ECOA §701 / CFPB Circular 2022-03',
+        applicabilityReason:
+          'Financial decision system processes data categories that correlate with protected characteristics (proxy variables). Requires disparate impact testing under ECOA and CFPB fair lending guidance.',
+        obligationType: 'bias_audit',
+      });
+    }
+    if (!triggers.includes('credit_lending')) {
+      frameworks.push({
+        framework: 'CFPB / OCC',
+        reference: 'CFPB Circular 2022-03 (proxy discrimination)',
+        applicabilityReason:
+          'Data features used in this financial decision system may serve as proxies for protected class characteristics. CFPB requires testing for proxy discrimination and documentation of feature selection rationale.',
+        obligationType: 'monitoring',
+      });
+    }
+  }
+
   return frameworks;
 }

@@ -64,14 +64,14 @@ describe('Seven-Dimension Risk Scoring', () => {
   describe('composite score calculation', () => {
     it('produces low score for minimal-risk input', () => {
       const result = calculateSevenDimensionScore(minimalRiskInput);
-      expect(result.compositeScore).toBeLessThanOrEqual(1.9);
+      expect(result.compositeScore).toBeLessThanOrEqual(1.4);
       expect(result.riskTier).toBe('low');
     });
 
-    it('produces critical score for maximum-risk input', () => {
+    it('produces high (top) tier for maximum-risk input', () => {
       const result = calculateSevenDimensionScore(criticalRiskInput);
       expect(result.compositeScore).toBeGreaterThanOrEqual(4.0);
-      expect(result.riskTier).toBe('critical');
+      expect(result.riskTier).toBe('high');
     });
 
     it('composite score is between 1.0 and 5.0', () => {
@@ -118,9 +118,9 @@ describe('Seven-Dimension Risk Scoring', () => {
   });
 
   describe('risk tier boundaries', () => {
-    it('score <= 1.9 maps to low tier', () => {
+    it('score <= 1.4 maps to low tier', () => {
       const result = calculateSevenDimensionScore(minimalRiskInput);
-      if (result.compositeScore <= 1.9) {
+      if (result.compositeScore <= 1.4) {
         expect(result.riskTier).toBe('low');
       }
     });
@@ -147,7 +147,7 @@ describe('Seven-Dimension Risk Scoring', () => {
       const has5 = result.dimensions.some((d) => d.score === 5);
       if (has5) {
         expect(result.overrideTriggered).toBe(true);
-        expect(result.riskTier).toBe('critical');
+        expect(result.riskTier).toBe('high');
       }
     });
 
@@ -168,7 +168,7 @@ describe('Seven-Dimension Risk Scoring', () => {
       };
       const result = calculateSevenDimensionScore(overrideInput);
       if (result.dimensions.some((d) => d.score === 5)) {
-        expect(result.riskTier).toBe('critical');
+        expect(result.riskTier).toBe('high');
       }
     });
   });
@@ -190,9 +190,9 @@ describe('Seven-Dimension Risk Scoring', () => {
       }
     });
 
-    it('critical tier gets maximum requirements', () => {
+    it('high (top) tier gets maximum requirements', () => {
       const result = calculateSevenDimensionScore(criticalRiskInput);
-      if (result.riskTier === 'critical') {
+      if (result.riskTier === 'high') {
         expect(result.governanceRequirements).toContain('Board approval required');
       }
     });

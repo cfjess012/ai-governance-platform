@@ -128,8 +128,8 @@ function Pill({
 
 function EmptyTabState({ message, hint }: { message: string; hint?: string }) {
   return (
-    <div className="text-center py-12 px-4">
-      <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-50 flex items-center justify-center">
+    <div className="flex flex-col items-center justify-center text-center px-4 py-16">
+      <div className="w-12 h-12 mb-3 rounded-full bg-slate-50 flex items-center justify-center">
         <svg
           aria-hidden="true"
           width="20"
@@ -146,7 +146,7 @@ function EmptyTabState({ message, hint }: { message: string; hint?: string }) {
         </svg>
       </div>
       <p className="text-sm text-slate-500">{message}</p>
-      {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-slate-400 mt-1 max-w-sm">{hint}</p>}
     </div>
   );
 }
@@ -472,7 +472,7 @@ export default function ModelDetailPage() {
 
   if (isLoadingModel) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-12">
         <p className="text-sm text-slate-500">Loading model…</p>
       </div>
     );
@@ -480,7 +480,7 @@ export default function ModelDetailPage() {
 
   if (notFound || !model) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-12">
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
           <p className="text-sm text-red-700">Model not found.</p>
           <Link href="/models" className="text-sm text-red-700 hover:underline mt-2 inline-block">
@@ -506,7 +506,7 @@ export default function ModelDetailPage() {
   // ─── Render ────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-8">
       {/* Breadcrumbs */}
       <div className="mb-3 flex items-center gap-2 text-xs text-slate-400">
         <Link href="/models" className="hover:text-blue-600 transition-colors">
@@ -722,405 +722,409 @@ export default function ModelDetailPage() {
       </div>
 
       {/* ── Tab content ───────────────────────────────────────── */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6">
-          {/* Governance analysis (full-width, above the fold) */}
-          <GovernanceAnalysisCard
-            analysis={model.governanceAnalysis}
-            isGenerating={isGeneratingAnalysis}
-            onGenerate={() => generateGovernanceAnalysis(id, linkedUseCases)}
-          />
+      <div className="min-h-[600px]">
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Governance analysis (full-width, above the fold) */}
+            <GovernanceAnalysisCard
+              analysis={model.governanceAnalysis}
+              isGenerating={isGeneratingAnalysis}
+              onGenerate={() => generateGovernanceAnalysis(id, linkedUseCases)}
+            />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              {/* Description */}
-              {(data.description || meta) && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                  <h2 className="text-sm font-semibold text-slate-900 mb-3">Description</h2>
-                  <p className="text-sm text-slate-700 leading-relaxed">
-                    {data.description ??
-                      `${data.name} is a ${data.modelType.replace('_', ' ')} provided by ${PROVIDER_LABELS[data.provider] ?? data.provider}.`}
-                  </p>
-                </div>
-              )}
-
-              {/* Known limitations */}
-              {data.knownLimitations && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                  <h2 className="text-sm font-semibold text-slate-900 mb-3">Known Limitations</h2>
-                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                    {data.knownLimitations}
-                  </p>
-                </div>
-              )}
-
-              {/* Tags from HF */}
-              {meta && meta.tags.length > 0 && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                  <h2 className="text-sm font-semibold text-slate-900 mb-3">Tags</h2>
-                  <div className="flex flex-wrap gap-1.5">
-                    {meta.tags.map((tag) => (
-                      <Pill key={tag} variant="slate">
-                        {tag}
-                      </Pill>
-                    ))}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                {/* Description */}
+                {(data.description || meta) && (
+                  <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <h2 className="text-sm font-semibold text-slate-900 mb-3">Description</h2>
+                    <p className="text-sm text-slate-700 leading-relaxed">
+                      {data.description ??
+                        `${data.name} is a ${data.modelType.replace('_', ' ')} provided by ${PROVIDER_LABELS[data.provider] ?? data.provider}.`}
+                    </p>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
 
-            {/* Right rail: metadata */}
-            <div className="space-y-6">
-              {/* Linked use cases (prominent on overview) */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-slate-900">Linked Use Cases</h2>
-                  <span className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
-                    {linkedUseCases.length}
-                  </span>
-                </div>
-                {linkedUseCases.length > 0 ? (
-                  <ul className="divide-y divide-slate-100">
-                    {linkedUseCases.map((uc) => (
-                      <li key={uc.id}>
-                        <Link
-                          href={`/inventory/${uc.id}`}
-                          className="flex items-center justify-between px-5 py-2.5 hover:bg-slate-50 transition-colors group"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium text-slate-900 group-hover:text-blue-600 truncate">
-                              {uc.intake.useCaseName}
-                            </p>
-                            <p className="text-[10px] text-slate-500 mt-0.5 truncate">
-                              {uc.intake.businessArea}
-                            </p>
-                          </div>
-                          <svg
-                            aria-hidden="true"
-                            width="12"
-                            height="12"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-slate-300 shrink-0 ml-2"
-                          >
-                            <polyline points="9 18 15 12 9 6" />
-                          </svg>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="px-5 py-4">
-                    <p className="text-xs text-slate-400">No use cases reference this model yet.</p>
+                {/* Known limitations */}
+                {data.knownLimitations && (
+                  <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <h2 className="text-sm font-semibold text-slate-900 mb-3">Known Limitations</h2>
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                      {data.knownLimitations}
+                    </p>
+                  </div>
+                )}
+
+                {/* Tags from HF */}
+                {meta && meta.tags.length > 0 && (
+                  <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <h2 className="text-sm font-semibold text-slate-900 mb-3">Tags</h2>
+                    <div className="flex flex-wrap gap-1.5">
+                      {meta.tags.map((tag) => (
+                        <Pill key={tag} variant="slate">
+                          {tag}
+                        </Pill>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
-              <div className="bg-white rounded-xl border border-slate-200 p-6">
-                <h2 className="text-sm font-semibold text-slate-900 mb-3">Metadata</h2>
-                <dl>
-                  <MetadataRow
-                    label="Provider"
-                    value={PROVIDER_LABELS[data.provider] ?? data.provider}
-                  />
-                  <MetadataRow label="Model Type" value={data.modelType.replace('_', ' ')} />
-                  {data.version && <MetadataRow label="Version" value={data.version} />}
-                  {data.hosting && (
-                    <MetadataRow label="Hosting" value={data.hosting.replace('_', ' ')} />
-                  )}
-                  {meta?.languages && meta.languages.length > 0 && (
-                    <MetadataRow label="Languages" value={meta.languages.join(', ')} />
-                  )}
-                  {meta?.baseModels && meta.baseModels.length > 0 && (
-                    <MetadataRow
-                      label="Base Model"
-                      value={
-                        <div className="flex flex-col gap-1">
-                          {meta.baseModels.map((bm) => (
-                            <a
-                              key={bm}
-                              href={`https://huggingface.co/${bm}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline font-mono text-xs"
+              {/* Right rail: metadata */}
+              <div className="space-y-6">
+                {/* Linked use cases (prominent on overview) */}
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-slate-900">Linked Use Cases</h2>
+                    <span className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+                      {linkedUseCases.length}
+                    </span>
+                  </div>
+                  {linkedUseCases.length > 0 ? (
+                    <ul className="divide-y divide-slate-100">
+                      {linkedUseCases.map((uc) => (
+                        <li key={uc.id}>
+                          <Link
+                            href={`/inventory/${uc.id}`}
+                            className="flex items-center justify-between px-5 py-2.5 hover:bg-slate-50 transition-colors group"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium text-slate-900 group-hover:text-blue-600 truncate">
+                                {uc.intake.useCaseName}
+                              </p>
+                              <p className="text-[10px] text-slate-500 mt-0.5 truncate">
+                                {uc.intake.businessArea}
+                              </p>
+                            </div>
+                            <svg
+                              aria-hidden="true"
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="text-slate-300 shrink-0 ml-2"
                             >
-                              {bm}
-                            </a>
-                          ))}
-                        </div>
-                      }
-                    />
+                              <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="px-5 py-4">
+                      <p className="text-xs text-slate-400">
+                        No use cases reference this model yet.
+                      </p>
+                    </div>
                   )}
-                  {meta?.datasets && meta.datasets.length > 0 && (
-                    <MetadataRow label="Datasets" value={meta.datasets.join(', ')} />
-                  )}
-                  {meta?.lastModified && (
-                    <MetadataRow
-                      label="Last updated"
-                      value={new Date(meta.lastModified).toLocaleDateString()}
-                    />
-                  )}
-                  <MetadataRow
-                    label="Approved Regions"
-                    value={
-                      data.approvedRegions && data.approvedRegions.length > 0
-                        ? data.approvedRegions.map((r) => r.replace('_', ' ')).join(', ')
-                        : '—'
-                    }
-                  />
-                  <MetadataRow
-                    label="Data Retention"
-                    value={data.dataRetentionPolicy ?? 'Not specified'}
-                  />
-                </dl>
-              </div>
-
-              {!hasHfId && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-xs font-semibold text-slate-700 mb-1">Proprietary model</p>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    This model is not published on Hugging Face. Live metadata, benchmarks, and the
-                    model card aren&apos;t available — refer to the vendor&apos;s documentation for
-                    technical specs.
-                  </p>
                 </div>
-              )}
 
-              {hf && (
                 <div className="bg-white rounded-xl border border-slate-200 p-6">
-                  <h2 className="text-sm font-semibold text-slate-900 mb-3">Hugging Face</h2>
+                  <h2 className="text-sm font-semibold text-slate-900 mb-3">Metadata</h2>
                   <dl>
                     <MetadataRow
-                      label="HF ID"
-                      value={
-                        <a
-                          href={meta?.huggingFaceUrl ?? '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline font-mono text-xs"
-                        >
-                          {meta?.modelId}
-                        </a>
-                      }
+                      label="Provider"
+                      value={PROVIDER_LABELS[data.provider] ?? data.provider}
                     />
-                    <MetadataRow label="Likes" value={String(meta?.likes ?? 0)} />
-                    <MetadataRow label="Library" value={meta?.library ?? '—'} />
-                    <MetadataRow label="Pipeline" value={meta?.pipelineTag ?? '—'} />
+                    <MetadataRow label="Model Type" value={data.modelType.replace('_', ' ')} />
+                    {data.version && <MetadataRow label="Version" value={data.version} />}
+                    {data.hosting && (
+                      <MetadataRow label="Hosting" value={data.hosting.replace('_', ' ')} />
+                    )}
+                    {meta?.languages && meta.languages.length > 0 && (
+                      <MetadataRow label="Languages" value={meta.languages.join(', ')} />
+                    )}
+                    {meta?.baseModels && meta.baseModels.length > 0 && (
+                      <MetadataRow
+                        label="Base Model"
+                        value={
+                          <div className="flex flex-col gap-1">
+                            {meta.baseModels.map((bm) => (
+                              <a
+                                key={bm}
+                                href={`https://huggingface.co/${bm}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline font-mono text-xs"
+                              >
+                                {bm}
+                              </a>
+                            ))}
+                          </div>
+                        }
+                      />
+                    )}
+                    {meta?.datasets && meta.datasets.length > 0 && (
+                      <MetadataRow label="Datasets" value={meta.datasets.join(', ')} />
+                    )}
+                    {meta?.lastModified && (
+                      <MetadataRow
+                        label="Last updated"
+                        value={new Date(meta.lastModified).toLocaleDateString()}
+                      />
+                    )}
                     <MetadataRow
-                      label="Last fetched"
+                      label="Approved Regions"
                       value={
-                        external?.lastFetchedAt
-                          ? new Date(external.lastFetchedAt).toLocaleString()
+                        data.approvedRegions && data.approvedRegions.length > 0
+                          ? data.approvedRegions.map((r) => r.replace('_', ' ')).join(', ')
                           : '—'
                       }
                     />
+                    <MetadataRow
+                      label="Data Retention"
+                      value={data.dataRetentionPolicy ?? 'Not specified'}
+                    />
                   </dl>
                 </div>
-              )}
+
+                {!hasHfId && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                    <p className="text-xs font-semibold text-slate-700 mb-1">Proprietary model</p>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      This model is not published on Hugging Face. Live metadata, benchmarks, and
+                      the model card aren&apos;t available — refer to the vendor&apos;s
+                      documentation for technical specs.
+                    </p>
+                  </div>
+                )}
+
+                {hf && (
+                  <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <h2 className="text-sm font-semibold text-slate-900 mb-3">Hugging Face</h2>
+                    <dl>
+                      <MetadataRow
+                        label="HF ID"
+                        value={
+                          <a
+                            href={meta?.huggingFaceUrl ?? '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline font-mono text-xs"
+                          >
+                            {meta?.modelId}
+                          </a>
+                        }
+                      />
+                      <MetadataRow label="Likes" value={String(meta?.likes ?? 0)} />
+                      <MetadataRow label="Library" value={meta?.library ?? '—'} />
+                      <MetadataRow label="Pipeline" value={meta?.pipelineTag ?? '—'} />
+                      <MetadataRow
+                        label="Last fetched"
+                        value={
+                          external?.lastFetchedAt
+                            ? new Date(external.lastFetchedAt).toLocaleString()
+                            : '—'
+                        }
+                      />
+                    </dl>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {activeTab === 'model_card' && (
-        <div className="bg-white rounded-xl border border-slate-200 p-8">
-          {hf?.modelCardMarkdown ? (
-            <ModelCardMarkdown markdown={hf.modelCardMarkdown} />
-          ) : hasHfId ? (
-            <EmptyTabState
-              message="No model card content available yet."
-              hint="Try refreshing from Hugging Face."
-            />
-          ) : (
-            <EmptyTabState
-              message="This model isn't linked to Hugging Face."
-              hint="Edit the model and add a Hugging Face Model ID to fetch the model card."
-            />
-          )}
-        </div>
-      )}
+        {activeTab === 'model_card' && (
+          <div className="bg-white rounded-xl border border-slate-200 p-8">
+            {hf?.modelCardMarkdown ? (
+              <ModelCardMarkdown markdown={hf.modelCardMarkdown} />
+            ) : hasHfId ? (
+              <EmptyTabState
+                message="No model card content available yet."
+                hint="Try refreshing from Hugging Face."
+              />
+            ) : (
+              <EmptyTabState
+                message="This model isn't linked to Hugging Face."
+                hint="Edit the model and add a Hugging Face Model ID to fetch the model card."
+              />
+            )}
+          </div>
+        )}
 
-      {activeTab === 'benchmarks' && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          {meta && meta.benchmarks.length > 0 ? (
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Task
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Dataset
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Metric
-                  </th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Value
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {meta.benchmarks.map((b) => {
-                  // Stable composite key — task+dataset+metric+value uniquely identifies a row.
-                  const rowKey = `${b.task}::${b.dataset}::${b.metric}::${b.value}`;
-                  return (
-                    <tr key={rowKey} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-slate-700">{b.task}</td>
-                      <td className="px-4 py-3 text-sm text-slate-700">{b.dataset}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{b.metric}</td>
-                      <td className="px-4 py-3 text-sm font-mono text-slate-900 text-right">
-                        {String(b.value)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <EmptyTabState
-              message="No benchmark data available."
-              hint={
-                hasHfId
-                  ? 'This model card does not include structured benchmark results.'
-                  : 'Link to a Hugging Face model to import benchmarks.'
-              }
-            />
-          )}
-        </div>
-      )}
-
-      {activeTab === 'files' && (
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          {meta && meta.files.length > 0 ? (
-            <div>
-              <p className="text-xs text-slate-500 mb-3">
-                {meta.files.length} file{meta.files.length === 1 ? '' : 's'} in repository
-              </p>
-              <ul className="space-y-1">
-                {meta.files.map((f) => (
-                  <li
-                    key={f}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 group"
-                  >
-                    <svg
-                      aria-hidden="true"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="text-slate-400 shrink-0"
-                    >
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                    <a
-                      href={`https://huggingface.co/${meta.modelId}/blob/main/${f}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-mono text-slate-700 group-hover:text-blue-600 truncate"
-                    >
-                      {f}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <EmptyTabState
-              message="No file listing available."
-              hint={
-                hasHfId
-                  ? 'Refresh from Hugging Face to load the file tree.'
-                  : 'Link to a Hugging Face model to see files.'
-              }
-            />
-          )}
-        </div>
-      )}
-
-      {activeTab === 'governance' && (
-        <div className="space-y-6">
-          {/* Linked use cases */}
+        {activeTab === 'benchmarks' && (
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
-              <h2 className="text-sm font-semibold text-slate-900">
-                Linked AI Use Cases ({linkedUseCases.length})
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Use cases in the inventory that reference this model.
-              </p>
-            </div>
-            {linkedUseCases.length > 0 ? (
-              <ul className="divide-y divide-slate-100">
-                {linkedUseCases.map((uc) => (
-                  <li key={uc.id}>
-                    <Link
-                      href={`/inventory/${uc.id}`}
-                      className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition-colors"
+            {meta && meta.benchmarks.length > 0 ? (
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Task
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Dataset
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Metric
+                    </th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Value
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {meta.benchmarks.map((b) => {
+                    // Stable composite key — task+dataset+metric+value uniquely identifies a row.
+                    const rowKey = `${b.task}::${b.dataset}::${b.metric}::${b.value}`;
+                    return (
+                      <tr key={rowKey} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 text-sm text-slate-700">{b.task}</td>
+                        <td className="px-4 py-3 text-sm text-slate-700">{b.dataset}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{b.metric}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-slate-900 text-right">
+                          {String(b.value)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <EmptyTabState
+                message="No benchmark data available."
+                hint={
+                  hasHfId
+                    ? 'This model card does not include structured benchmark results.'
+                    : 'Link to a Hugging Face model to import benchmarks.'
+                }
+              />
+            )}
+          </div>
+        )}
+
+        {activeTab === 'files' && (
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            {meta && meta.files.length > 0 ? (
+              <div>
+                <p className="text-xs text-slate-500 mb-3">
+                  {meta.files.length} file{meta.files.length === 1 ? '' : 's'} in repository
+                </p>
+                <ul className="space-y-1">
+                  {meta.files.map((f) => (
+                    <li
+                      key={f}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 group"
                     >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-900">
-                          {uc.intake.useCaseName}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {uc.intake.businessArea} · {uc.intake.useCaseOwner}
-                        </p>
-                      </div>
                       <svg
                         aria-hidden="true"
-                        width="16"
-                        height="16"
+                        width="14"
+                        height="14"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="text-slate-300 shrink-0"
+                        className="text-slate-400 shrink-0"
                       >
-                        <polyline points="9 18 15 12 9 6" />
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
                       </svg>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+                      <a
+                        href={`https://huggingface.co/${meta.modelId}/blob/main/${f}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-mono text-slate-700 group-hover:text-blue-600 truncate"
+                      >
+                        {f}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : (
-              <div className="p-6">
-                <p className="text-xs text-slate-400 text-center">
-                  No use cases reference this model yet.
+              <EmptyTabState
+                message="No file listing available."
+                hint={
+                  hasHfId
+                    ? 'Refresh from Hugging Face to load the file tree.'
+                    : 'Link to a Hugging Face model to see files.'
+                }
+              />
+            )}
+          </div>
+        )}
+
+        {activeTab === 'governance' && (
+          <div className="space-y-6">
+            {/* Linked use cases */}
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Linked AI Use Cases ({linkedUseCases.length})
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Use cases in the inventory that reference this model.
                 </p>
               </div>
-            )}
-          </div>
+              {linkedUseCases.length > 0 ? (
+                <ul className="divide-y divide-slate-100">
+                  {linkedUseCases.map((uc) => (
+                    <li key={uc.id}>
+                      <Link
+                        href={`/inventory/${uc.id}`}
+                        className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition-colors"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-900">
+                            {uc.intake.useCaseName}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {uc.intake.businessArea} · {uc.intake.useCaseOwner}
+                          </p>
+                        </div>
+                        <svg
+                          aria-hidden="true"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="text-slate-300 shrink-0"
+                        >
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="p-6">
+                  <p className="text-xs text-slate-400 text-center">
+                    No use cases reference this model yet.
+                  </p>
+                </div>
+              )}
+            </div>
 
-          {/* Approved regions card */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
-            <h2 className="text-sm font-semibold text-slate-900 mb-3">
-              Approved Deployment Regions
-            </h2>
-            {data.approvedRegions && data.approvedRegions.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {data.approvedRegions.map((r) => (
-                  <Pill key={r} variant="blue">
-                    {r.replace('_', ' ')}
-                  </Pill>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400">No approved regions specified.</p>
-            )}
+            {/* Approved regions card */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <h2 className="text-sm font-semibold text-slate-900 mb-3">
+                Approved Deployment Regions
+              </h2>
+              {data.approvedRegions && data.approvedRegions.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {data.approvedRegions.map((r) => (
+                    <Pill key={r} variant="blue">
+                      {r.replace('_', ' ')}
+                    </Pill>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400">No approved regions specified.</p>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Delete confirmation modal */}
       {showDeleteConfirm && (

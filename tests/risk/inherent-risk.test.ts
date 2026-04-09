@@ -191,7 +191,9 @@ describe('calculateInherentRisk end-to-end', () => {
 
     it('detects the GenAI Customer Exposure pattern', () => {
       const result = calculateInherentRisk(retirementChatbotFixture);
-      expect(result.firedPatterns.find((p) => p.id === 'genai_customer_exposure')).toBeDefined();
+      expect(
+        result.firedPatterns.find((p) => p.id === 'genai_customer_unconstrained'),
+      ).toBeDefined();
     });
 
     it('does NOT classify as Low (because of 100k+ users with sensitive data)', () => {
@@ -342,7 +344,9 @@ describe('Confluence patterns', () => {
         whoAffected: 'external',
         dataSensitivity: ['customer_confidential'],
       });
-      expect(result.firedPatterns.find((p) => p.id === 'genai_customer_exposure')).toBeDefined();
+      expect(
+        result.firedPatterns.find((p) => p.id === 'genai_customer_unconstrained'),
+      ).toBeDefined();
     });
 
     it('does not fire for internal-only systems', () => {
@@ -352,7 +356,9 @@ describe('Confluence patterns', () => {
         whoAffected: 'internal_only',
         dataSensitivity: ['customer_confidential'],
       });
-      expect(result.firedPatterns.find((p) => p.id === 'genai_customer_exposure')).toBeUndefined();
+      expect(
+        result.firedPatterns.find((p) => p.id === 'genai_customer_unconstrained'),
+      ).toBeUndefined();
     });
   });
 

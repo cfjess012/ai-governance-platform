@@ -434,6 +434,13 @@ export const intakeQuestions: QuestionDefinition[] = [
         helpText:
           'Select if AI failures or hallucinations could create security risks (e.g., generating insecure code, misconfiguring infrastructure, mishandling secrets).',
       },
+      {
+        value: 'processes_customer_pii',
+        label:
+          'Processes customer personally identifiable information (PII or sensitive personal data)',
+        helpText:
+          'Select if the system processes customer names, SSNs, account numbers, addresses, health records, biometrics, or any data that could identify a natural person. Triggers GDPR, CCPA, and data privacy compliance requirements.',
+      },
       { value: 'none_of_above', label: 'None of the above' },
     ],
   },
